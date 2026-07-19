@@ -35,7 +35,10 @@ export default function AppShell({ children }: Props) {
       {/* layer 4: noise texture, gently drifting */}
       <CardNoise opacity={0.025} animated />
 
-      <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">{children}</div>
+      {/* max-w-6xl is the deliberate desktop content cap — kept unchanged.
+          w-full/max-w-full just make explicit what a block div already does:
+          never exceed its parent's width, so it can't itself cause overflow. */}
+      <div className="relative mx-auto w-full max-w-full px-4 py-8 sm:px-6 sm:py-10 md:max-w-6xl">{children}</div>
     </main>
   );
 }

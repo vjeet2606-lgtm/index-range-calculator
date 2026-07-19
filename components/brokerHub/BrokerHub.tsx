@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Search } from "lucide-react";
 import { BROKER_REGIONS } from "@/lib/brokers/registry";
 import { useBrokerHub } from "@/hooks/useBrokerHub";
+import { useMarketStore } from "@/store/marketStore";
 import BrokerHubCard from "./BrokerHubCard";
 import BrokerCredentialForm from "@/components/forms/BrokerCredentialForm";
 import BrokerDocsModal from "./BrokerDocsModal";
@@ -18,7 +19,10 @@ import type { BrokerConfig } from "@/lib/brokers/types";
  */
 export default function BrokerHub() {
   const hub = useBrokerHub();
-  const [expandedBrokerId, setExpandedBrokerId] = useState<string | null>(null);
+  // Persisted globally (not local useState) so which broker card was open
+  // survives a refresh, same as the rest of the workflow.
+  const expandedBrokerId = useMarketStore((state) => state.selectedBrokerId);
+  const setExpandedBrokerId = useMarketStore((state) => state.setSelectedBrokerId);
   const [docsBroker, setDocsBroker] = useState<BrokerConfig | null>(null);
 
   const grouped = BROKER_REGIONS.map((region) => ({
@@ -68,7 +72,9 @@ export default function BrokerHub() {
                 broker={broker}
                 status={hub.statusFor(broker.id)}
                 isExpanded={expandedBrokerId === broker.id}
-                onToggleExpand={() => setExpandedBrokerId((prev) => (prev === broker.id ? null : broker.id))}
+                onToggleExpand={() =>
+                  setExpandedBrokerId(expandedBrokerId === broker.id ? null : broker.id)
+                }
                 onLearnMore={() => setDocsBroker(getBrokerById(broker.id) ?? broker)}
               >
                 <BrokerCredentialForm

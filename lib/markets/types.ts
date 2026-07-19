@@ -33,5 +33,4 @@ export type MarketConfig = {
   apiProvider?: string;
   supportedInstruments: InstrumentConfig[];
   defaultInstrumentSymbol?: string;
-  supportedBrokerIds: string[];
 };

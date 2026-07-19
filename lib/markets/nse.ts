@@ -26,5 +26,4 @@ export const NSE_MARKET: MarketConfig = {
     { symbol: "STOCK", label: "Stock Option", category: "stock", freeText: true },
   ],
   defaultInstrumentSymbol: "NIFTY",
-  supportedBrokerIds: ["dhan", "zerodha", "groww", "angelone", "upstox", "fyers", "aliceblue", "kotakneo"],
 };

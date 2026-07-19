@@ -11,6 +11,10 @@ async function dhanFetch<T>(path: string, credentials: DhanCredentials, body: un
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
+    // TEMPORARY DEBUG — remove after diagnosing the connection issue.
+    console.error("Request Body:", body);
+    console.error("Client ID:", credentials.clientId);
+
     const res = await fetch(`${BASE_URL}${path}`, {
       method: "POST",
       headers: {
@@ -24,6 +28,13 @@ async function dhanFetch<T>(path: string, credentials: DhanCredentials, body: un
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
+      // TEMPORARY DEBUG — remove after diagnosing the connection issue.
+      console.error("========== DHAN API DEBUG ==========");
+      console.error("URL:", `${BASE_URL}${path}`);
+      console.error("Status:", res.status);
+      console.error("Headers:", Object.fromEntries(res.headers.entries()));
+      console.error("Response:", text);
+      console.error("====================================");
       throw classifyHttpError(res.status, text);
     }
 

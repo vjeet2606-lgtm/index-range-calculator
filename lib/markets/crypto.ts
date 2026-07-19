@@ -19,5 +19,4 @@ export const CRYPTO_MARKET: MarketConfig = {
     { symbol: "SOL", label: "Solana", category: "crypto" },
   ],
   defaultInstrumentSymbol: "BTC",
-  supportedBrokerIds: ["delta", "deribit", "binance", "bybit", "okx"],
 };

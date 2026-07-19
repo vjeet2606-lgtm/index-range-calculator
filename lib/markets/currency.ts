@@ -14,5 +14,4 @@ export const CURRENCY_MARKET: MarketConfig = {
     { symbol: "GBPINR", label: "GBP/INR", category: "currency-pair" },
     { symbol: "JPYINR", label: "JPY/INR", category: "currency-pair" },
   ],
-  supportedBrokerIds: ["dhan", "zerodha", "angelone"],
 };

@@ -40,6 +40,7 @@ export default function BrokerStatusWidget() {
         }}
         aria-expanded={isOpen}
         aria-haspopup="true"
+        aria-label={`Broker connection — ${label}`}
         className="glass-premium inline-flex items-center gap-2.5 rounded-full py-2 pl-2 pr-3.5 text-left shadow-[0_10px_24px_-16px_rgba(0,0,0,0.5)] backdrop-blur-xl transition-shadow duration-200 hover:shadow-[0_0_20px_-8px_rgba(182,255,34,0.35),0_10px_24px_-16px_rgba(0,0,0,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-elevated text-[11px] font-bold text-foreground">
@@ -79,7 +80,11 @@ export default function BrokerStatusWidget() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
-              className="glass-premium absolute left-0 top-[calc(100%+12px)] z-50 max-h-[80vh] w-[92vw] max-w-[520px] overflow-y-auto rounded-[18px] p-5 backdrop-blur-xl"
+              // Mobile: fixed + inset-x margins, independent of where the trigger
+              // sits in the header — a 92vw panel anchored via `left-0` to a
+              // trigger that isn't at the page edge reliably overflowed. Desktop
+              // (sm:+) keeps the exact original trigger-anchored positioning.
+              className="glass-premium fixed left-3 right-3 top-24 z-50 max-h-[80vh] overflow-y-auto rounded-[18px] p-5 backdrop-blur-xl sm:absolute sm:left-0 sm:right-auto sm:top-[calc(100%+12px)] sm:w-[92vw] sm:max-w-[520px]"
             >
               <BrokerHub />
             </motion.div>

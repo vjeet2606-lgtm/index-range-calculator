@@ -32,7 +32,7 @@ export default function Card({
   return (
     <div
       style={style}
-      className={`rounded-[18px] p-6 transition-shadow duration-300 ${surface} ${className}`}
+      className={`w-full max-w-full rounded-[18px] p-6 transition-shadow duration-300 ${surface} ${className}`}
     >
       {children}
     </div>

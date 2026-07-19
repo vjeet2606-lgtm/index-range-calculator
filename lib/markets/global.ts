@@ -9,5 +9,4 @@ export const GLOBAL_MARKET: MarketConfig = {
   currency: "USD",
   status: "architecture-only",
   supportedInstruments: [],
-  supportedBrokerIds: ["interactivebrokers", "tradier", "alpaca", "tradovate"],
 };

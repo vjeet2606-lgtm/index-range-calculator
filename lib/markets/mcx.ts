@@ -24,5 +24,4 @@ export const MCX_MARKET: MarketConfig = {
     { symbol: "NICKEL", label: "Nickel", category: "commodity" },
     { symbol: "ALUMINIUM", label: "Aluminium", category: "commodity" },
   ],
-  supportedBrokerIds: ["dhan", "zerodha", "angelone"],
 };

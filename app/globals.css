@@ -92,26 +92,33 @@ body {
 }
 
 /* Premium glass surface: gradient border + inner gloss, via the background-clip
-   layering trick so no extra wrapper element is needed. */
-.glass-premium {
-  position: relative;
-  border: 1px solid transparent;
-  background-image:
-    linear-gradient(var(--card), var(--card)),
-    linear-gradient(135deg, rgba(182, 255, 34, 0.32), rgba(255, 255, 255, 0.06) 45%, rgba(182, 255, 34, 0.12));
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
-}
+   layering trick so no extra wrapper element is needed.
+   Wrapped in @layer components so Tailwind utilities (e.g. `fixed`, `absolute`)
+   can still override `position` here — plain unlayered CSS always beats
+   @layer utilities regardless of specificity or source order, which silently
+   forced every glass-premium element back to `position: relative` even when a
+   component explicitly asked for `fixed`/`absolute`. */
+@layer components {
+  .glass-premium {
+    position: relative;
+    border: 1px solid transparent;
+    background-image:
+      linear-gradient(var(--card), var(--card)),
+      linear-gradient(135deg, rgba(182, 255, 34, 0.32), rgba(255, 255, 255, 0.06) 45%, rgba(182, 255, 34, 0.12));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
 
-.glass-premium::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(140px 90px at 90% 6%, rgba(255, 255, 255, 0.1), transparent 70%),
-    linear-gradient(160deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 35%);
-  pointer-events: none;
+  .glass-premium::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      radial-gradient(140px 90px at 90% 6%, rgba(255, 255, 255, 0.1), transparent 70%),
+      linear-gradient(160deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 35%);
+    pointer-events: none;
+  }
 }
 
 @property --border-angle {
@@ -129,32 +136,34 @@ body {
 /* Applied instead of .glass-premium (never alongside it) when a card is
    selected/active — a slowly rotating conic-gradient "traveling light" border,
    colored per-accent via --accent-soft / --accent-strong custom properties. */
-.glass-premium-active {
-  position: relative;
-  border: 1px solid transparent;
-  background-image:
-    linear-gradient(var(--card), var(--card)),
-    conic-gradient(
-      from var(--border-angle),
-      var(--accent-soft, rgba(182, 255, 34, 0.15)) 0deg,
-      var(--accent-strong, rgba(182, 255, 34, 0.9)) 90deg,
-      var(--accent-soft, rgba(182, 255, 34, 0.15)) 200deg,
-      var(--accent-soft, rgba(182, 255, 34, 0.15)) 360deg
-    );
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
-  animation: border-travel 3.5s linear infinite;
-}
+@layer components {
+  .glass-premium-active {
+    position: relative;
+    border: 1px solid transparent;
+    background-image:
+      linear-gradient(var(--card), var(--card)),
+      conic-gradient(
+        from var(--border-angle),
+        var(--accent-soft, rgba(182, 255, 34, 0.15)) 0deg,
+        var(--accent-strong, rgba(182, 255, 34, 0.9)) 90deg,
+        var(--accent-soft, rgba(182, 255, 34, 0.15)) 200deg,
+        var(--accent-soft, rgba(182, 255, 34, 0.15)) 360deg
+      );
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    animation: border-travel 3.5s linear infinite;
+  }
 
-.glass-premium-active::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(140px 90px at 90% 6%, var(--accent-soft, rgba(182, 255, 34, 0.25)), transparent 70%),
-    linear-gradient(160deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 35%);
-  pointer-events: none;
+  .glass-premium-active::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      radial-gradient(140px 90px at 90% 6%, var(--accent-soft, rgba(182, 255, 34, 0.25)), transparent 70%),
+      linear-gradient(160deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 35%);
+    pointer-events: none;
+  }
 }
 
 @keyframes card-breathe {
