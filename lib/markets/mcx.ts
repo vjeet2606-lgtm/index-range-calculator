@@ -1,10 +1,16 @@
 import type { MarketConfig } from "./types";
 
 /**
- * Disabled but supported: instrument list is real, but no broker adapter is wired for
- * MCX yet, so selecting this market keeps the calculator in manual mode only. Lot
- * size / tick size are intentionally left unset rather than guessed — they should be
- * populated from a verified provider mapping when MCX is actually implemented.
+ * Enabled, live-data backed. The tile list is NOT hardcoded here — it comes
+ * from the real, current MCX commodity/index universe (see
+ * lib/dhan/scripMaster.ts's getMcxCommodityUniverse / hooks/
+ * useMcxCommodityUniverse.ts), fetched and rendered by InstrumentPicker.tsx
+ * exactly the way NSE's index tiles are, just from a live source instead of
+ * this static array. supportedInstruments stays empty on purpose — it's only
+ * consulted here as a synchronous fallback label source (see
+ * useCalculationEngine.ts), and MCX symbols behave the same way NSE Stock
+ * Option symbols already do: the raw symbol is a perfectly good label when no
+ * static entry exists.
  */
 export const MCX_MARKET: MarketConfig = {
   id: "MCX",
@@ -12,16 +18,9 @@ export const MCX_MARKET: MarketConfig = {
   exchange: "Multi Commodity Exchange of India",
   timezone: "Asia/Kolkata",
   currency: "INR",
-  status: "disabled",
-  supportedInstruments: [
-    { symbol: "GOLD", label: "Gold", category: "commodity" },
-    { symbol: "SILVER", label: "Silver", category: "commodity" },
-    { symbol: "CRUDEOIL", label: "Crude Oil", category: "commodity" },
-    { symbol: "NATURALGAS", label: "Natural Gas", category: "commodity" },
-    { symbol: "COPPER", label: "Copper", category: "commodity" },
-    { symbol: "ZINC", label: "Zinc", category: "commodity" },
-    { symbol: "LEAD", label: "Lead", category: "commodity" },
-    { symbol: "NICKEL", label: "Nickel", category: "commodity" },
-    { symbol: "ALUMINIUM", label: "Aluminium", category: "commodity" },
-  ],
+  status: "enabled",
+  expiryRule: "Monthly (commodity options) / weekly (MCXBULLDEX & MCXMETLDEX index options)",
+  apiProvider: "dhan",
+  supportedInstruments: [],
+  defaultInstrumentSymbol: "GOLD",
 };

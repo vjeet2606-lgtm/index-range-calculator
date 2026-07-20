@@ -17,8 +17,6 @@ import type {
  * functions directly; this adapter exists for any broker-agnostic caller (future
  * multi-broker routes, the future AI engine) that shouldn't need to know it's Dhan.
  */
-const SUPPORTED_MARKETS: MarketId[] = ["NSE", "MCX", "CURRENCY"];
-
 export class DhanAdapter implements BrokerAdapter {
   readonly brokerId = "dhan";
 
@@ -62,7 +60,7 @@ export class DhanAdapter implements BrokerAdapter {
   }
 
   async fetchInstrumentData(marketId: MarketId, symbol: string): Promise<NormalizedInstrumentData> {
-    if (!SUPPORTED_MARKETS.includes(marketId)) {
+    if (marketId !== "NSE" && marketId !== "MCX") {
       throw new DhanApiError("INVALID_SYMBOL", `Dhan adapter does not support market "${marketId}" yet.`);
     }
 
@@ -71,7 +69,7 @@ export class DhanAdapter implements BrokerAdapter {
       throw new DhanApiError("INVALID_TOKEN", "Not connected to Dhan.");
     }
 
-    const range = await getLiveRange(symbol, session);
+    const range = await getLiveRange(symbol, marketId, session);
 
     return {
       spotPrice: range.spot,

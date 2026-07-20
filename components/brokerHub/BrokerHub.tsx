@@ -14,8 +14,11 @@ import type { BrokerConfig } from "@/lib/brokers/types";
 
 /**
  * The Universal Broker Connection Hub — every broker in the registry, grouped by
- * region, searchable, fully clickable. Used both inline (wizard "source" step)
- * and inside the header's BrokerStatusWidget popover.
+ * region, searchable, fully clickable. This is the ONLY place broker connection
+ * forms exist in the app — rendered exclusively inside the header's
+ * BrokerStatusWidget popover. Never duplicate this elsewhere; anything that
+ * needs to "open the broker manager" should flip the shared
+ * marketStore.isBrokerManagerOpen flag instead.
  */
 export default function BrokerHub() {
   const hub = useBrokerHub();

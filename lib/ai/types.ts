@@ -1,6 +1,6 @@
 import type { MarketId } from "@/lib/markets/types";
 import type { NormalizedInstrumentData } from "@/lib/brokers/types";
-import type { ExpectedRangeResult } from "@/types/range";
+import type { CalculationEngineResult } from "@/types/calculationEngine";
 
 /**
  * Architecture only — no AI engine exists yet. This documents the shape a future
@@ -11,7 +11,7 @@ export type AIInsightInput = {
   marketId: MarketId;
   symbol: string;
   instrumentData: NormalizedInstrumentData;
-  calculatedRange: ExpectedRangeResult;
+  calculatedRange: CalculationEngineResult;
   volume?: number;
   openInterest?: number;
   openInterestChange?: number;

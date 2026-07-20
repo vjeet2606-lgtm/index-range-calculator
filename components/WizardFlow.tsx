@@ -2,19 +2,19 @@
 
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Target } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import MarketGrid from "@/components/forms/MarketGrid";
 import InstrumentPicker from "@/components/forms/InstrumentPicker";
-import BrokerHub from "@/components/brokerHub/BrokerHub";
 import ManualInputForm from "@/components/forms/ManualInputForm";
 import ResultDashboard from "@/components/ResultDashboard";
+import NoBrokerConnected from "@/components/NoBrokerConnected";
 import StatusBar from "@/components/layout/StatusBar";
 import Button from "@/components/ui/Button";
-import Card from "@/components/ui/Card";
 import { useMarketSelection } from "@/hooks/useMarketSelection";
 import { useLiveRange } from "@/hooks/useLiveRange";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { useWizardStep } from "@/hooks/useWizardStep";
+import { useMarketStore } from "@/store/marketStore";
 import type { MarketId } from "@/lib/markets/types";
 import type { WizardStepId } from "@/lib/wizard/steps";
 
@@ -27,19 +27,33 @@ const stepVariants = {
 export default function WizardFlow() {
   const { marketId, setMarketId } = useMarketSelection();
   useLiveRange();
+  useAutoRefresh();
 
   const { stepId, setStepId, stepIndex, goBack } = useWizardStep();
+  const isBrokerConnected = useMarketStore((state) => state.connection.status === "connected");
+  const isBrokerManagerOpen = useMarketStore((state) => state.isBrokerManagerOpen);
+  const setBrokerManagerOpen = useMarketStore((state) => state.setBrokerManagerOpen);
 
   // ESC always steps back one level — the only keyboard shortcut beyond native
-  // Tab/Enter/Space/arrow-key grid navigation, which the buttons already get for free.
+  // Tab/Enter/Space/arrow-key grid navigation, which the buttons already get for
+  // free. Checked here (not just inside BrokerStatusWidget's own handler) because
+  // the Broker Manager can now be opened from the Dashboard's button too, and
+  // when it's opened that way, focus isn't inside BrokerStatusWidget's own div —
+  // its local stopPropagation guard never fires, so without this check ESC would
+  // both fail to close the popover and incorrectly navigate the wizard back.
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") goBack();
+      if (event.key !== "Escape") return;
+      if (isBrokerManagerOpen) {
+        setBrokerManagerOpen(false);
+        return;
+      }
+      goBack();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stepIndex]);
+  }, [stepIndex, isBrokerManagerOpen]);
 
   function advanceAfter(next: WizardStepId) {
     window.setTimeout(() => setStepId(next), 350);
@@ -79,30 +93,15 @@ export default function WizardFlow() {
           {stepId === "instrument" && (
             <section className="flex flex-col gap-4">
               <h2 className="text-xl font-bold tracking-tight text-foreground">Choose Your Instrument</h2>
-              <InstrumentPicker onTileSelect={() => advanceAfter("source")} />
+              <InstrumentPicker onTileSelect={() => advanceAfter("dashboard")} />
             </section>
-          )}
-
-          {stepId === "source" && (
-            <div className="flex flex-col gap-8">
-              <h2 className="text-xl font-bold tracking-tight text-foreground">Connect Your Data Source</h2>
-              <Card variant="glass">
-                <BrokerHub />
-              </Card>
-              <ManualInputForm />
-              <div className="flex justify-end">
-                <Button variant="primary" onClick={() => setStepId("dashboard")}>
-                  <Target className="h-5 w-5" />
-                  Calculate Expected Range
-                  <ArrowRight className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
           )}
 
           {stepId === "dashboard" && (
             <div className="flex flex-col gap-6">
-              <h2 className="text-xl font-bold tracking-tight text-foreground">Expected Range Dashboard</h2>
+              <h2 className="text-xl font-bold tracking-tight text-foreground">Calculation Dashboard</h2>
+              {!isBrokerConnected && <NoBrokerConnected />}
+              <ManualInputForm />
               <ResultDashboard />
               <div className="flex justify-end">
                 <Button variant="outline" onClick={() => setStepId("market")}>

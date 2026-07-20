@@ -229,6 +229,186 @@ body {
   animation: glow-drift 20s ease-in-out infinite;
 }
 
+/* Calculation Loading overlay — mathematical symbols/values drifting upward
+   while fading in and out, like particle-float but for text glyphs instead
+   of dots (translate3d + opacity only, GPU-composited, no layout thrash). */
+@keyframes symbol-float {
+  0% {
+    transform: translate3d(0, 12px, 0) scale(0.85);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.85;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  80% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate3d(0, -46px, 0) scale(0.9);
+    opacity: 0;
+  }
+}
+
+.animate-symbol-float {
+  animation: symbol-float ease-in-out infinite;
+}
+
+/* A calculation "resolving" in place — scale + opacity pulse, no drift —
+   standing in for "small calculations appear and disappear". */
+@keyframes symbol-resolve {
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  40% {
+    transform: scale(1.08);
+    opacity: 0.9;
+  }
+  70% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+}
+
+.animate-symbol-resolve {
+  animation: symbol-resolve ease-in-out infinite;
+}
+
+/* Quant Engine V2 — a longer, wider sweep than symbol-float, for glyphs that
+   should read as "continuously flowing through the screen" rather than
+   drifting gently in place. transform/opacity only, GPU-composited. */
+@keyframes symbol-drift {
+  0% {
+    transform: translate3d(-6vw, 10px, 0) scale(0.85);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.8;
+  }
+  50% {
+    transform: translate3d(3vw, -10px, 0) scale(1);
+  }
+  88% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate3d(10vw, -28px, 0) scale(0.88);
+    opacity: 0;
+  }
+}
+
+.animate-symbol-drift {
+  animation: symbol-drift ease-in-out infinite;
+}
+
+/* A small element circling the central engine badge — "moving vectors"
+   around the core, reinforcing an active-engine feel. Approximated with
+   percentage keyframe stops rather than a true trig path, cheap to composite. */
+@keyframes symbol-orbit {
+  0% {
+    transform: translate3d(46px, 0, 0) scale(0.9);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.85;
+  }
+  25% {
+    transform: translate3d(0, 46px, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-46px, 0, 0) scale(0.9);
+    opacity: 0.7;
+  }
+  75% {
+    transform: translate3d(0, -46px, 0) scale(1);
+  }
+  90% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate3d(46px, 0, 0) scale(0.9);
+    opacity: 0;
+  }
+}
+
+.animate-symbol-orbit {
+  animation: symbol-orbit linear infinite;
+}
+
+@keyframes symbol-orbit-lg {
+  0% {
+    transform: translate3d(78px, 0, 0) scale(0.9);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.75;
+  }
+  25% {
+    transform: translate3d(0, 78px, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-78px, 0, 0) scale(0.9);
+    opacity: 0.55;
+  }
+  75% {
+    transform: translate3d(0, -78px, 0) scale(1);
+  }
+  90% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate3d(78px, 0, 0) scale(0.9);
+    opacity: 0;
+  }
+}
+
+.animate-symbol-orbit-lg {
+  animation: symbol-orbit-lg linear infinite;
+}
+
+/* A thin gradient line sweeping between two calculation nodes — "numbers
+   reconnecting". Pure transform/opacity so it costs nothing extra. */
+@keyframes connector-sweep {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scaleX(0.3);
+  }
+  40% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.7;
+    transform: scaleX(1);
+  }
+  85% {
+    opacity: 0.15;
+  }
+}
+
+.animate-connector-sweep {
+  animation: connector-sweep ease-in-out infinite;
+}
+
+/* Concentric rings expanding out from the central engine badge — a radar/
+   sonar "actively scanning" read, deliberately not a spinner. */
+@keyframes core-pulse-ring {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.animate-core-pulse-ring {
+  animation: core-pulse-ring cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
   .animate-pulse-glow,
@@ -236,6 +416,13 @@ body {
   .animate-particle,
   .animate-noise-drift,
   .animate-glow-drift,
+  .animate-symbol-float,
+  .animate-symbol-resolve,
+  .animate-symbol-drift,
+  .animate-symbol-orbit,
+  .animate-symbol-orbit-lg,
+  .animate-connector-sweep,
+  .animate-core-pulse-ring,
   .glass-premium-active {
     animation: none;
   }

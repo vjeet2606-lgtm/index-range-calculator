@@ -7,7 +7,7 @@ import type { MarketConfig } from "./types";
  */
 export const NSE_MARKET: MarketConfig = {
   id: "NSE",
-  name: "NSE",
+  name: "NSE • BSE",
   exchange: "National Stock Exchange of India / BSE",
   timezone: "Asia/Kolkata",
   currency: "INR",

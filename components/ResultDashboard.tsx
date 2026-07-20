@@ -1,56 +1,38 @@
 "use client";
 
-import RangeResultCard from "@/components/cards/RangeResultCard";
-import SupportResistanceCard from "@/components/cards/SupportResistanceCard";
-import RiskSummaryCard from "@/components/cards/RiskSummaryCard";
-import MarketSummaryCard from "@/components/cards/MarketSummaryCard";
-import ProbabilityCard from "@/components/cards/ProbabilityCard";
-import ShareResultButton from "@/components/ShareResultButton";
-import { useMarketSelection } from "@/hooks/useMarketSelection";
-import { useExpectedRange } from "@/hooks/useExpectedRange";
+import UnderlyingCalculation from "@/components/UnderlyingCalculation";
+import OptionPremiumCalculation from "@/components/OptionPremiumCalculation";
+import CalculationLoadingOverlay from "@/components/calculation/CalculationLoadingOverlay";
+import { useCalculationEngine } from "@/hooks/useCalculationEngine";
+import { useMinimumDurationVisible } from "@/hooks/useMinimumDurationVisible";
+import { useMarketStore } from "@/store/marketStore";
+
+// Long enough that the loading animation always reads as "the engine worked
+// on this" rather than flashing by, short enough to stay snappy — roughly one
+// full pass through the rotating status messages.
+const MIN_LOADING_MS = 2800;
 
 export default function ResultDashboard() {
-  const { marketId, symbol } = useMarketSelection();
-  const result = useExpectedRange();
+  useCalculationEngine();
+
+  const isCalculating = useMarketStore((state) => state.isCalculating);
+  const showOverlay = useMinimumDurationVisible(isCalculating, MIN_LOADING_MS);
 
   return (
     <div className="flex flex-col gap-6">
-      <RangeResultCard
-        label={symbol || "Instrument"}
-        spot={result?.spot ?? null}
-        lowerBound={result?.lowerBound ?? null}
-        upperBound={result?.upperBound ?? null}
-        sentiment={result?.sentiment ?? "neutral"}
-        action={
-          result && (
-            <ShareResultButton
-              label={symbol || "Instrument"}
-              spot={result.spot}
-              lowerBound={result.lowerBound}
-              upperBound={result.upperBound}
-            />
-          )
-        }
-      />
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <SupportResistanceCard kind="support" value={result?.lowerBound ?? null} />
-        <SupportResistanceCard
-          kind="resistance"
-          value={result?.upperBound ?? null}
-          style={{ animationDelay: "80ms" }}
-        />
+      <div className="relative flex flex-col gap-6">
+        <UnderlyingCalculation isRefreshing={showOverlay} />
+        <OptionPremiumCalculation />
+        <CalculationLoadingOverlay isVisible={showOverlay} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <RiskSummaryCard
-          spot={result?.spot ?? null}
-          rangeWidth={result?.rangeWidth ?? null}
-          style={{ animationDelay: "120ms" }}
-        />
-        <MarketSummaryCard marketId={marketId} symbol={symbol} style={{ animationDelay: "160ms" }} />
-        <ProbabilityCard style={{ animationDelay: "200ms" }} />
-      </div>
+      <p className="border-t border-border pt-4 text-center text-xs leading-relaxed text-muted-foreground">
+        <span className="font-semibold text-foreground">Mathematical Calculation</span>
+        <br />
+        This calculator performs quantitative calculations using live market data. Results are
+        generated from current market inputs including Spot Price, Option Premium, Greeks,
+        Implied Volatility and Time to Expiry.
+      </p>
     </div>
   );
 }

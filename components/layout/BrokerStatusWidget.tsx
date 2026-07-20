@@ -1,16 +1,20 @@
 "use client";
 
-import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { triggerHaptic } from "@/lib/haptics";
 import { useBrokerHub } from "@/hooks/useBrokerHub";
+import { useMarketStore } from "@/store/marketStore";
 import { getBrokerById } from "@/lib/brokers/registry";
 import BrokerHub from "@/components/brokerHub/BrokerHub";
 
+/** The ONE Broker Manager instance in the app — every "open the broker manager"
+ *  action anywhere (this widget, the Dashboard's empty state) flips the same
+ *  global isBrokerManagerOpen flag rather than rendering its own copy. */
 export default function BrokerStatusWidget() {
   const hub = useBrokerHub();
-  const [isOpen, setIsOpen] = useState(false);
+  const isOpen = useMarketStore((state) => state.isBrokerManagerOpen);
+  const setIsOpen = useMarketStore((state) => state.setBrokerManagerOpen);
 
   const activeStatus = hub.savedStatuses.find((s) => s.connected);
   const activeBroker = activeStatus ? getBrokerById(activeStatus.brokerId) : undefined;
@@ -36,7 +40,7 @@ export default function BrokerStatusWidget() {
         type="button"
         onClick={() => {
           triggerHaptic("normal");
-          setIsOpen((open) => !open);
+          setIsOpen(!isOpen);
         }}
         aria-expanded={isOpen}
         aria-haspopup="true"

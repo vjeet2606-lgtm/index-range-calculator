@@ -5,6 +5,9 @@ import { classifyThrownError, DhanApiError } from "@/lib/dhan/errors";
 
 export async function GET(request: NextRequest) {
   const symbol = request.nextUrl.searchParams.get("symbol");
+  const marketParam = request.nextUrl.searchParams.get("market");
+  const market = marketParam === "MCX" ? "MCX" : "NSE";
+  const forceRefresh = request.nextUrl.searchParams.get("refresh") === "1";
   if (!symbol) {
     return NextResponse.json(
       { error: { code: "INVALID_SYMBOL", message: "Query param 'symbol' is required." } },
@@ -21,7 +24,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const data = await getLiveRange(symbol, session);
+    const data = await getLiveRange(symbol, market, session, { forceRefresh });
     return NextResponse.json({ data });
   } catch (err) {
     const apiError = err instanceof DhanApiError ? err : classifyThrownError(err);

@@ -1,6 +1,12 @@
 export type DhanInstrument = {
   securityId: string;
-  exchangeSegment: "IDX_I";
+  /** Dhan's documented ExchangeSegment codes (v2 API annexure) for the
+   *  underlyings this app can resolve a live option chain for. MCX_COMM
+   *  resolves against the nearest active FUTCOM/FUTIDX contract's security id
+   *  (see verifyMcxInstrument in scripMaster.ts) — MCX commodities have no
+   *  separate spot/index security id the way NSE indices do, so the nearest
+   *  future is the closest real analogue to an "underlying". */
+  exchangeSegment: "IDX_I" | "NSE_EQ" | "MCX_COMM";
 };
 
 /**
