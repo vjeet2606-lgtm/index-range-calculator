@@ -1,11 +1,14 @@
 /**
- * Snapshot: the two scenarios (Upper/Lower) change only Spot, using the
- * current live snapshot's Greeks/IV/time as-is — no forward time or IV shock
- * is assumed, so Theta/Vega contribute 0 (see PremiumBreakdown.appliedTheta/
- * appliedVega). Reserved for future modes that would advance time and/or
- * shock IV, at which point Theta/Vega would contribute non-zero — adding them
- * only requires a new branch in resolvePricingModeDeltas() (ivEngine.ts) and
- * the modes array below; no other file needs to change shape.
+ * Snapshot: the two scenarios (Upper/Lower) reprice the option at the
+ * projected spot using the SAME calibrated volatility and time-to-expiry as
+ * the live quote (Quantitative Engine v2 — lib/quant/**) — no forward time
+ * or IV shock is assumed, so Theta/Vega contribute 0 (see
+ * PremiumBreakdown.appliedTheta/appliedVega). Reserved for future modes that
+ * would advance time and/or shock IV, at which point Theta/Vega would
+ * contribute non-zero — adding them only requires resolving a different
+ * (timeToExpiryYears, volatilityPercent) pair per mode in
+ * lib/calculators/premiumBreakdown.ts and a new entry in the modes array
+ * below; the pricing core itself (lib/quant/core/**) does not change shape.
  */
 export type PricingMode = "snapshot"; // future: "plus1day" | "plusNdays" | "expiry"
 

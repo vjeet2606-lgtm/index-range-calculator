@@ -7,8 +7,10 @@ import type {
   ScenarioResult,
   UnderlyingCalculationResult,
 } from "@/types/calculationEngine";
+import type { MarketId } from "@/lib/markets/types";
 import { calculateExpectedLevels } from "./expectedLevels";
 import { buildPremiumBreakdown } from "./premiumBreakdown";
+import { clearComputationCache } from "@/lib/quant/cache/computationCache";
 
 export type StrikeWindowLegInput = {
   premium: number;
@@ -26,6 +28,10 @@ export type StrikeWindowRowInput = {
 
 export type CalculationEngineInput = {
   underlyingLabel: string;
+  /** Selects the pricing model (Black-Scholes-Merton vs Black-76) — see
+   *  lib/quant/core/modelSelector.ts. Defaults to "NSE" so manual-mode/
+   *  existing call sites that don't pass it keep working unchanged. */
+  marketId?: MarketId;
   spot: number;
   cePremium: number;
   pePremium: number;
@@ -71,6 +77,7 @@ function buildLegBreakdowns(
         optionType,
         scenario,
         pricingMode,
+        marketId: input.marketId ?? "NSE",
         spot,
         calculatedSpot,
         optionPremium: leg.premium,
@@ -108,6 +115,12 @@ function buildScenarioResult(
  * everything the UI needs; no component computes anything itself.
  */
 export function runCalculationEngine(input: CalculationEngineInput): CalculationEngineResult {
+  // Every call here is a fresh calculation (see doc comment above) — the
+  // pricing-core computation cache must never survive past the data that
+  // produced it, so it's cleared at the one, single entry point rather than
+  // relying on every feature to remember to do so. Architecture doc §9.
+  clearComputationCache();
+
   const pricingMode: PricingMode = input.pricingMode ?? "snapshot";
 
   const levels = calculateExpectedLevels({

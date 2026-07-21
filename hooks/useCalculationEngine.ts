@@ -51,6 +51,7 @@ export function useCalculationEngine() {
 
     const engineResult = runCalculationEngine({
       underlyingLabel,
+      marketId,
       spot,
       cePremium,
       pePremium,
