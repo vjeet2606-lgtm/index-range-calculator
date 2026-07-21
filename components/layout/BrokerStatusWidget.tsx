@@ -88,7 +88,18 @@ export default function BrokerStatusWidget() {
               // sits in the header — a 92vw panel anchored via `left-0` to a
               // trigger that isn't at the page edge reliably overflowed. Desktop
               // (sm:+) keeps the exact original trigger-anchored positioning.
-              className="glass-premium fixed left-3 right-3 top-24 z-50 max-h-[80vh] overflow-y-auto rounded-[18px] p-5 backdrop-blur-xl sm:absolute sm:left-0 sm:right-auto sm:top-[calc(100%+12px)] sm:w-[92vw] sm:max-w-[520px]"
+              //
+              // max-h uses dvh (dynamic viewport height), not vh: this panel
+              // holds a credential form, so the on-screen keyboard is reliably
+              // open while it's in use. Plain `vh` is the *layout* viewport and
+              // mobile browsers don't shrink it when the keyboard appears,
+              // producing a panel taller than the actually-visible area — the
+              // bottom of the panel (including the Connect button, depending on
+              // scroll position) can end up geometrically underneath the fixed
+              // full-screen backdrop click-catcher once the keyboard is open,
+              // which is what made Connect silently eat taps on Android mobile
+              // browsers. dvh tracks the real, keyboard-adjusted visual space.
+              className="glass-premium fixed left-3 right-3 top-24 z-50 max-h-[80dvh] overflow-y-auto rounded-[18px] p-5 backdrop-blur-xl sm:absolute sm:left-0 sm:right-auto sm:top-[calc(100%+12px)] sm:w-[92vw] sm:max-w-[520px]"
             >
               <BrokerHub />
             </motion.div>

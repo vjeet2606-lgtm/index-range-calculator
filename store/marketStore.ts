@@ -68,6 +68,12 @@ type MarketState = {
    *  instead of needing its own copy. Deliberately not persisted: reloading the
    *  page should never leave a popover artificially open. */
   isBrokerManagerOpen: boolean;
+  /** A single global toast — deliberately not a queue/stack. Every flow in this
+   *  app (broker connect, refresh failures, etc.) reports one outcome at a
+   *  time, so the simplest model that can't silently drop a message wins.
+   *  Rendered by ToastHost, mounted once at the app root so it floats above
+   *  every modal/popover regardless of which step or panel is open. */
+  toast: { id: number; message: string; tone: "success" | "error" } | null;
   setMarketId: (marketId: MarketId) => void;
   setSymbol: (symbol: string) => void;
   setManualInput: (field: keyof ManualInputs, value: string) => void;
@@ -80,6 +86,8 @@ type MarketState = {
   setStepId: (stepId: WizardStepId) => void;
   setSelectedBrokerId: (brokerId: string | null) => void;
   setBrokerManagerOpen: (open: boolean) => void;
+  showToast: (message: string, tone: "success" | "error") => void;
+  clearToast: () => void;
 };
 
 export const useMarketStore = create<MarketState>()(
@@ -98,6 +106,7 @@ export const useMarketStore = create<MarketState>()(
       stepId: DEFAULT_WIZARD_STEP_ID,
       selectedBrokerId: null,
       isBrokerManagerOpen: false,
+      toast: null,
       // P0 fix: switching market or instrument used to leave the previous
       // symbol's manualInputs/result untouched, so e.g. picking MCX after NIFTY
       // kept showing NIFTY's numbers under the MCX label until the user happened
@@ -148,6 +157,8 @@ export const useMarketStore = create<MarketState>()(
       setStepId: (stepId) => set({ stepId }),
       setSelectedBrokerId: (selectedBrokerId) => set({ selectedBrokerId }),
       setBrokerManagerOpen: (isBrokerManagerOpen) => set({ isBrokerManagerOpen }),
+      showToast: (message, tone) => set({ toast: { id: Date.now(), message, tone } }),
+      clearToast: () => set({ toast: null }),
     }),
     {
       name: "lynx_market_state",

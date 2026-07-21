@@ -1,13 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BROKERS, searchBrokers } from "@/lib/brokers/registry";
+import { BROKERS, getBrokerById, searchBrokers } from "@/lib/brokers/registry";
 import { useBrokerConnection } from "@/hooks/useBrokerConnection";
 import { useMarketStore } from "@/store/marketStore";
 import { triggerHaptic } from "@/lib/haptics";
 import type { SavedBrokerStatus } from "@/app/api/brokers/status/route";
 
 type TestResult = { verified: boolean; message: string };
+
+// Deliberately NOT gated behind NODE_ENV — see useBrokerConnection.ts.
+function pipelineLog(...args: unknown[]): void {
+  console.info("[Pipeline:BrokerConnect]", ...args);
+}
+
+function brokerName(brokerId: string): string {
+  return getBrokerById(brokerId)?.name ?? brokerId;
+}
 
 export function useBrokerHub() {
   const dhan = useBrokerConnection();
@@ -89,15 +98,40 @@ export function useBrokerHub() {
   }
 
   async function saveCredentials(brokerId: string, values: Record<string, string>) {
+    pipelineLog("Saving credentials", { brokerId });
     setSavingBrokerId(brokerId);
     setSaveErrors((prev) => ({ ...prev, [brokerId]: "" }));
 
     if (brokerId === "dhan") {
-      await dhan.connect(values.clientId, values.accessToken);
+      pipelineLog("Calling API", { brokerId, endpoint: "/api/dhan/connect" });
+      // dhan.connect() never throws (it has its own internal try/catch and
+      // always resolves, reporting outcome via connection.status/errorMessage)
+      // — but this call is still wrapped so a genuinely unexpected throw here
+      // can never leave savingBrokerId stuck and the UI silently frozen.
+      try {
+        await dhan.connect(values.clientId, values.accessToken);
+      } catch (err) {
+        pipelineLog("Calling API failed unexpectedly", { brokerId, err });
+      }
       // Read fresh from the store rather than the closed-over `dhan.connection` —
       // that snapshot predates this await and won't reflect what connect() just set.
-      const freshStatus = useMarketStore.getState().connection.status;
-      triggerHaptic(freshStatus === "connected" ? "success" : "error");
+      const freshConnection = useMarketStore.getState().connection;
+      const connected = freshConnection.status === "connected";
+      pipelineLog(connected ? "API success" : "API failed", {
+        brokerId,
+        status: freshConnection.status,
+        errorMessage: freshConnection.errorMessage,
+      });
+
+      triggerHaptic(connected ? "success" : "error");
+      if (connected) {
+        useMarketStore.getState().showToast(`${brokerName(brokerId)} connected successfully.`, "success");
+        pipelineLog("Connection complete", { brokerId });
+      } else {
+        const message = freshConnection.errorMessage || "Could not connect. Please check your credentials.";
+        setSaveErrors((prev) => ({ ...prev, [brokerId]: message }));
+        useMarketStore.getState().showToast(message, "error");
+      }
       setSavingBrokerId(null);
       await refreshStatuses();
       return;
@@ -111,15 +145,24 @@ export function useBrokerHub() {
       });
       const json = await res.json();
       if (!res.ok) {
+        pipelineLog("API failed", { brokerId, status: res.status, error: json.error });
         triggerHaptic("error");
-        setSaveErrors((prev) => ({ ...prev, [brokerId]: json.error?.message ?? "Could not save credentials." }));
+        const message = json.error?.message ?? "Could not save credentials.";
+        setSaveErrors((prev) => ({ ...prev, [brokerId]: message }));
+        useMarketStore.getState().showToast(message, "error");
         return;
       }
+      pipelineLog("API success", { brokerId });
       triggerHaptic("success");
+      useMarketStore.getState().showToast(`${brokerName(brokerId)} credentials saved.`, "success");
+      pipelineLog("Connection complete", { brokerId });
       await refreshStatuses();
-    } catch {
+    } catch (err) {
+      pipelineLog("API failed — network error", { brokerId, err });
       triggerHaptic("error");
-      setSaveErrors((prev) => ({ ...prev, [brokerId]: "Could not reach the server." }));
+      const message = "Could not reach the server.";
+      setSaveErrors((prev) => ({ ...prev, [brokerId]: message }));
+      useMarketStore.getState().showToast(message, "error");
     } finally {
       setSavingBrokerId(null);
     }

@@ -10,6 +10,7 @@ import ResultDashboard from "@/components/ResultDashboard";
 import NoBrokerConnected from "@/components/NoBrokerConnected";
 import StatusBar from "@/components/layout/StatusBar";
 import Button from "@/components/ui/Button";
+import ToastHost from "@/components/ui/ToastHost";
 import { useMarketSelection } from "@/hooks/useMarketSelection";
 import { useLiveRange } from "@/hooks/useLiveRange";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
@@ -114,6 +115,7 @@ export default function WizardFlow() {
       </AnimatePresence>
 
       <StatusBar />
+      <ToastHost />
     </div>
   );
 }
