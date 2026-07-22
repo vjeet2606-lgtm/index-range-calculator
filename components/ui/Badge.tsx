@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type BadgeTone = "bullish" | "bearish" | "neutral" | "connected" | "disconnected";
+export type BadgeTone = "bullish" | "bearish" | "neutral" | "connected" | "disconnected" | "info";
 
 type Props = {
   tone: BadgeTone;
@@ -14,6 +14,7 @@ const toneClasses: Record<BadgeTone, string> = {
   neutral: "bg-elevated text-muted-foreground border-border",
   connected: "bg-bullish/15 text-bullish border-bullish/30",
   disconnected: "bg-bearish/15 text-bearish border-bearish/30",
+  info: "bg-blue/15 text-blue border-blue/30",
 };
 
 export default function Badge({ tone, children, className = "" }: Props) {

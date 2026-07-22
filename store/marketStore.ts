@@ -28,6 +28,32 @@ export type LiveExtras = {
 
 const EMPTY_MANUAL_INPUTS: ManualInputs = { spot: "", cePremium: "", pePremium: "" };
 
+export type SessionStatus = "locked" | "updated";
+
+/**
+ * Session Lock Expected Range — a snapshot of the Quantitative Engine's
+ * output at the moment it was locked, not a new calculation. Every field
+ * here is copied verbatim from an already-computed CalculationEngineResult
+ * (see store.lockSession) — this type and the logic around it never call
+ * into lib/quant/** or lib/calculators/**, and never derive a number the
+ * frozen engine didn't already produce. "Session" is scoped to the current
+ * calendar day (see hooks/useSessionLock.ts) and to the current market/
+ * symbol (cleared on setMarketId/setSymbol below, same as manualInputs).
+ */
+export type LockedSession = {
+  openingSpot: number;
+  openingTime: number;
+  cePremium: number;
+  pePremium: number;
+  impliedVolatility?: number;
+  strikeWindow?: DhanStrikeWindowRow[];
+  expectedLowerBoundary: number;
+  expectedUpperBoundary: number;
+  rangeWidth: number;
+  calculatedAt: number;
+  status: SessionStatus;
+};
+
 type MarketState = {
   marketId: MarketId;
   symbol: string;
@@ -74,12 +100,35 @@ type MarketState = {
    *  Rendered by ToastHost, mounted once at the app root so it floats above
    *  every modal/popover regardless of which step or panel is open. */
   toast: { id: number; message: string; tone: "success" | "error" } | null;
+  /** The locked Daily Mathematical Expected Range — see LockedSession's doc
+   *  comment. null until the first result of the day/instrument locks it in
+   *  (hooks/useSessionLock.ts). Persisted (unlike `result`) so the lock
+   *  survives a page reload within the same trading session — the entire
+   *  point of this feature is that it must NOT silently reset. */
+  lockedSession: LockedSession | null;
+  /** Set by "Recalculate Today's Range" (after the user confirms) to tell
+   *  useSessionLock.ts that the *next* result landing should replace the
+   *  lock (status "updated") instead of being ignored the way an ordinary
+   *  Refresh Live Market result is. Deliberately not persisted — if a reload
+   *  happens mid-recalculation, resuming with the old lock intact is safer
+   *  than resuming into a half-finished relock. */
+  pendingRelock: boolean;
   setMarketId: (marketId: MarketId) => void;
   setSymbol: (symbol: string) => void;
   setManualInput: (field: keyof ManualInputs, value: string) => void;
   setManualInputsFromLive: (inputs: ManualInputs, extras: LiveExtras) => void;
   setResult: (result: CalculationEngineResult | null) => void;
   setCalculationError: (message: string | null) => void;
+  /** The one place LockedSession snapshots are created — always copies
+   *  fields off an already-computed CalculationEngineResult, never computes
+   *  anything itself. See LockedSession's doc comment. */
+  lockSession: (
+    result: CalculationEngineResult,
+    manualInputs: ManualInputs,
+    liveExtras: LiveExtras | null,
+    status: SessionStatus,
+  ) => void;
+  requestRelock: () => void;
   triggerRefresh: () => void;
   finishCalculating: () => void;
   setConnection: (partial: Partial<BrokerConnectionState>) => void;
@@ -107,6 +156,8 @@ export const useMarketStore = create<MarketState>()(
       selectedBrokerId: null,
       isBrokerManagerOpen: false,
       toast: null,
+      lockedSession: null,
+      pendingRelock: false,
       // P0 fix: switching market or instrument used to leave the previous
       // symbol's manualInputs/result untouched, so e.g. picking MCX after NIFTY
       // kept showing NIFTY's numbers under the MCX label until the user happened
@@ -121,6 +172,10 @@ export const useMarketStore = create<MarketState>()(
           dataSource: "manual",
           result: null,
           calculationError: null,
+          // A new instrument is a new session — the previous instrument's
+          // locked range describes a different underlying entirely.
+          lockedSession: null,
+          pendingRelock: false,
         }),
       setSymbol: (symbol) =>
         set({
@@ -130,6 +185,8 @@ export const useMarketStore = create<MarketState>()(
           dataSource: "manual",
           result: null,
           calculationError: null,
+          lockedSession: null,
+          pendingRelock: false,
         }),
       setManualInput: (field, value) =>
         set((state) => ({
@@ -143,6 +200,24 @@ export const useMarketStore = create<MarketState>()(
         set({ manualInputs: inputs, liveExtras: extras, dataSource: "live", calculationError: null }),
       setResult: (result) => set({ result }),
       setCalculationError: (calculationError) => set({ calculationError }),
+      lockSession: (result, manualInputs, liveExtras, status) =>
+        set({
+          lockedSession: {
+            openingSpot: result.underlying.currentSpot,
+            openingTime: Date.now(),
+            cePremium: Number(manualInputs.cePremium),
+            pePremium: Number(manualInputs.pePremium),
+            impliedVolatility: liveExtras?.impliedVolatility,
+            strikeWindow: liveExtras?.strikeWindow,
+            expectedLowerBoundary: result.underlying.calculatedLowerLevel,
+            expectedUpperBoundary: result.underlying.calculatedUpperLevel,
+            rangeWidth: result.underlying.calculatedUpperLevel - result.underlying.calculatedLowerLevel,
+            calculatedAt: result.underlying.lastCalculatedAt,
+            status,
+          },
+          pendingRelock: false,
+        }),
+      requestRelock: () => set({ pendingRelock: true }),
       // No-ops while a refresh is already in flight — the disabled Refresh
       // button already prevents this from the UI, but guarding here too means
       // a second trigger (e.g. auto-refresh firing mid-manual-refresh) can
@@ -175,6 +250,12 @@ export const useMarketStore = create<MarketState>()(
         manualInputs: state.manualInputs,
         stepId: state.stepId,
         selectedBrokerId: state.selectedBrokerId,
+        // Unlike `result`/`liveExtras`, the locked session is deliberately
+        // persisted — it must survive a page reload within the same trading
+        // session, or the entire point of locking it is defeated. Staleness
+        // across a new calendar day is handled by useSessionLock.ts, not by
+        // excluding it here.
+        lockedSession: state.lockedSession,
       }),
       // A returning user's localStorage can hold a stepId from before a wizard
       // change removed that step (e.g. "source", removed when the Broker Manager
