@@ -1,7 +1,9 @@
-import { formatNumber } from "@/lib/format";
+import { formatNumber, formatSigned } from "@/lib/format";
 import type {
   ConfidenceReport,
+  LiquidityIntelligenceReport,
   RemainingExpectedMoveReport,
+  RiskIntelligenceReport,
   VolatilityIntelligenceReport,
 } from "./types";
 
@@ -12,6 +14,8 @@ export type LiveExplanationInput = {
   upperBoundary: number | undefined;
   volatility: VolatilityIntelligenceReport;
   remainingExpectedMove: RemainingExpectedMoveReport;
+  risk: RiskIntelligenceReport;
+  liquidity: LiquidityIntelligenceReport;
   confidence: ConfidenceReport;
   marketStatusLabel: string;
 };
@@ -40,6 +44,16 @@ function describeRemainingMove(report: RemainingExpectedMoveReport): string {
   return `The remaining expected move for the rest of the session is ±${formatNumber(report.remainingMove)} points.`;
 }
 
+function describeRisk(risk: RiskIntelligenceReport): string {
+  if (risk.netDeltaExposure === undefined) return "";
+  return ` The ATM straddle's net Delta exposure is ${formatSigned(risk.netDeltaExposure)}.`;
+}
+
+function describeLiquidity(liquidity: LiquidityIntelligenceReport): string {
+  if (liquidity.atmPutCallOIRatio === undefined) return "";
+  return ` ATM Put-Call OI Ratio is ${formatNumber(liquidity.atmPutCallOIRatio)}.`;
+}
+
 function describeConfidence(confidence: ConfidenceReport): string {
   if (confidence.level === "high") return "Calculation confidence is high — all fetched data was complete and current.";
   if (confidence.level === "reduced") return "Calculation confidence is reduced — some fetched data was incomplete or aging.";
@@ -47,22 +61,27 @@ function describeConfidence(confidence: ConfidenceReport): string {
 }
 
 /**
- * Live Explanation Engine. Narrates the other five modules' already-computed
- * outputs as a short plain-English paragraph — a template over numbers,
- * the same "show your work" spirit as the per-leg formula string in
- * lib/calculators/premiumBreakdown.ts, just at the whole-underlying level.
- * Computes nothing itself; every clause reads directly off an input field.
- * No Buy/Sell/Entry/Exit/Target/Stop-Loss/recommendation language anywhere.
+ * Live Explanation Engine. Narrates the other Market Intelligence modules'
+ * already-computed outputs as a short plain-English paragraph — a template
+ * over numbers, the same "show your work" spirit as the per-leg formula
+ * string in lib/calculators/premiumBreakdown.ts, just at the
+ * whole-underlying level. Computes nothing itself; every clause reads
+ * directly off an input field, and Risk/Liquidity clauses are omitted
+ * entirely (not shown as "—") when their data isn't available, rather than
+ * padding the paragraph with empty statements. No Buy/Sell/Entry/Exit/
+ * Target/Stop-Loss/recommendation language anywhere.
  */
 export function generateLiveExplanation(input: LiveExplanationInput): string {
   const positionText = describePosition(input.currentSpot, input.lowerBoundary, input.upperBoundary);
   const volatilityText = describeVolatility(input.volatility);
   const remainingMoveText = describeRemainingMove(input.remainingExpectedMove);
+  const riskText = describeRisk(input.risk);
+  const liquidityText = describeLiquidity(input.liquidity);
   const confidenceText = describeConfidence(input.confidence);
 
   return (
     `${input.underlyingLabel} is trading at ${formatNumber(input.currentSpot)}, ${positionText}. ` +
-    `${volatilityText} ${remainingMoveText} ` +
+    `${volatilityText} ${remainingMoveText}${riskText}${liquidityText} ` +
     `Market status: ${input.marketStatusLabel}. ${confidenceText}`
   );
 }

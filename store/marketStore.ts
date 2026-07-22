@@ -9,7 +9,7 @@ import { DEFAULT_WIZARD_STEP_ID, WIZARD_STEPS } from "@/lib/wizard/steps";
 import type { DhanStrikeWindowRow } from "@/lib/dhan/types";
 import type { TimeHorizon, TimeHorizonKind } from "@/lib/timeHorizon/types";
 import type { MarketSessionSnapshot } from "@/lib/marketSession/types";
-import type { IntelligenceReport } from "@/lib/analytics/types";
+import type { MarketDNA } from "@/lib/analytics/types";
 
 export type ManualInputs = {
   spot: string;
@@ -133,12 +133,12 @@ type MarketState = {
    *  happens mid-recalculation, resuming with the old lock intact is safer
    *  than resuming into a half-finished relock. */
   pendingRelock: boolean;
-  /** Phase 2 — Intraday Quantitative Intelligence Engine output (see
-   *  lib/analytics/**), computed by hooks/useIntelligenceEngines.ts from the
+  /** Phase 3 — Market Intelligence Engine's combined output (see
+   *  lib/analytics/**), computed by hooks/useMarketIntelligence.ts from the
    *  already-computed `result`/`lockedSession`/`liveExtras` above. Never
    *  persisted — derived/ephemeral exactly like `result`, recomputed fresh
    *  on every calculation. */
-  intelligence: IntelligenceReport | null;
+  marketDNA: MarketDNA | null;
   setMarketId: (marketId: MarketId) => void;
   setSymbol: (symbol: string) => void;
   /** Switching Intraday <-> Expiry is, for calculation purposes, exactly
@@ -160,7 +160,7 @@ type MarketState = {
     status: SessionStatus,
   ) => void;
   requestRelock: () => void;
-  setIntelligence: (intelligence: IntelligenceReport | null) => void;
+  setMarketDNA: (marketDNA: MarketDNA | null) => void;
   triggerRefresh: () => void;
   finishCalculating: () => void;
   setConnection: (partial: Partial<BrokerConnectionState>) => void;
@@ -191,7 +191,7 @@ export const useMarketStore = create<MarketState>()(
       toast: null,
       lockedSession: null,
       pendingRelock: false,
-      intelligence: null,
+      marketDNA: null,
       // P0 fix: switching market or instrument used to leave the previous
       // symbol's manualInputs/result untouched, so e.g. picking MCX after NIFTY
       // kept showing NIFTY's numbers under the MCX label until the user happened
@@ -276,7 +276,7 @@ export const useMarketStore = create<MarketState>()(
           pendingRelock: false,
         }),
       requestRelock: () => set({ pendingRelock: true }),
-      setIntelligence: (intelligence) => set({ intelligence }),
+      setMarketDNA: (marketDNA) => set({ marketDNA }),
       // No-ops while a refresh is already in flight — the disabled Refresh
       // button already prevents this from the UI, but guarding here too means
       // a second trigger (e.g. auto-refresh firing mid-manual-refresh) can
