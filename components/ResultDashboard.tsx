@@ -2,10 +2,12 @@
 
 import UnderlyingCalculation from "@/components/UnderlyingCalculation";
 import LiveMarketStatus from "@/components/LiveMarketStatus";
+import QuantitativeIntelligence from "@/components/QuantitativeIntelligence";
 import OptionPremiumCalculation from "@/components/OptionPremiumCalculation";
 import CalculationLoadingOverlay from "@/components/calculation/CalculationLoadingOverlay";
 import { useCalculationEngine } from "@/hooks/useCalculationEngine";
 import { useSessionLock } from "@/hooks/useSessionLock";
+import { useIntelligenceEngines } from "@/hooks/useIntelligenceEngines";
 import { useMinimumDurationVisible } from "@/hooks/useMinimumDurationVisible";
 import { useMarketStore } from "@/store/marketStore";
 
@@ -17,6 +19,7 @@ const MIN_LOADING_MS = 2800;
 export default function ResultDashboard() {
   useCalculationEngine();
   useSessionLock();
+  useIntelligenceEngines();
 
   const isCalculating = useMarketStore((state) => state.isCalculating);
   const showOverlay = useMinimumDurationVisible(isCalculating, MIN_LOADING_MS);
@@ -26,6 +29,7 @@ export default function ResultDashboard() {
       <div className="relative flex flex-col gap-6">
         <UnderlyingCalculation isRefreshing={showOverlay} />
         <LiveMarketStatus />
+        <QuantitativeIntelligence />
         <OptionPremiumCalculation />
         <CalculationLoadingOverlay isVisible={showOverlay} />
       </div>

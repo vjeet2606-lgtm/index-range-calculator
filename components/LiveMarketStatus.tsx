@@ -6,16 +6,10 @@ import Badge, { type BadgeTone } from "@/components/ui/Badge";
 import { formatNumber, formatSigned, formatTime } from "@/lib/format";
 import { formatRemainingSession } from "@/lib/timeHorizon/timeHorizonProvider";
 import type { MarketStatus } from "@/lib/marketSession/types";
+import { MARKET_STATUS_LABEL } from "@/lib/marketSession/displayLabels";
 import { useMarketStore } from "@/store/marketStore";
 
 type Zone = "Near Lower Zone" | "Middle of Range" | "Near Upper Zone";
-
-const MARKET_STATUS_LABEL: Record<MarketStatus, string> = {
-  "pre-market": "Pre-Market",
-  open: "Market Open",
-  "post-market": "Market Closed",
-  holiday: "Holiday",
-};
 
 const MARKET_STATUS_TONE: Record<MarketStatus, BadgeTone> = {
   "pre-market": "neutral",
