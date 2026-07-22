@@ -2,11 +2,27 @@
 
 import type { ReactNode } from "react";
 import Card from "@/components/ui/Card";
+import Badge, { type BadgeTone } from "@/components/ui/Badge";
 import { formatNumber, formatSigned, formatTime } from "@/lib/format";
 import { formatRemainingSession } from "@/lib/timeHorizon/timeHorizonProvider";
+import type { MarketStatus } from "@/lib/marketSession/types";
 import { useMarketStore } from "@/store/marketStore";
 
 type Zone = "Near Lower Zone" | "Middle of Range" | "Near Upper Zone";
+
+const MARKET_STATUS_LABEL: Record<MarketStatus, string> = {
+  "pre-market": "Pre-Market",
+  open: "Market Open",
+  "post-market": "Market Closed",
+  holiday: "Holiday",
+};
+
+const MARKET_STATUS_TONE: Record<MarketStatus, BadgeTone> = {
+  "pre-market": "neutral",
+  open: "bullish",
+  "post-market": "neutral",
+  holiday: "neutral",
+};
 
 const LOWER_ZONE_THRESHOLD_PERCENT = 33;
 const UPPER_ZONE_THRESHOLD_PERCENT = 67;
@@ -47,6 +63,7 @@ export default function LiveMarketStatus() {
   const result = useMarketStore((state) => state.result);
   const lockedSession = useMarketStore((state) => state.lockedSession);
   const timeHorizon = useMarketStore((state) => state.liveExtras?.timeHorizon);
+  const marketSession = useMarketStore((state) => state.liveExtras?.marketSession);
 
   const currentSpot = result?.underlying.currentSpot;
   const lastUpdated = result?.underlying.lastCalculatedAt;
@@ -77,10 +94,18 @@ export default function LiveMarketStatus() {
       <h2 className="text-xl font-bold tracking-tight text-foreground">Live Market Status</h2>
 
       <Card variant="glass" glow={hasRange} className="animate-fade-in-up flex flex-col gap-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Quantitative measurements only — not a trading signal
-          </p>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Quantitative measurements only — not a trading signal
+            </p>
+            {marketSession && (
+              <Badge tone={MARKET_STATUS_TONE[marketSession.status]} className="text-[10px]">
+                {MARKET_STATUS_LABEL[marketSession.status]}
+              </Badge>
+            )}
+          </div>
+
           {timeHorizon && (
             <p className="text-[10px] font-semibold uppercase tracking-wider text-primary">
               {timeHorizon.label} · {formatRemainingSession(timeHorizon)} remaining

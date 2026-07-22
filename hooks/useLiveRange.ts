@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useMarketStore } from "@/store/marketStore";
 import type { LiveRangeData } from "@/lib/dhan/types";
 import { resolveTimeHorizon } from "@/lib/timeHorizon/timeHorizonProvider";
+import { getMarketSession } from "@/lib/marketSession/marketSessionService";
 import { getMarket } from "@/lib/markets/registry";
 
 const DEBUG = process.env.NODE_ENV !== "production";
@@ -122,17 +123,25 @@ export function useLiveRange() {
         }
 
         const data = json.data as LiveRangeData;
+        // Market Session Service: NSE's current trading-session state — a
+        // fact about the exchange, resolved regardless of which horizon the
+        // user has selected, since "is the market open right now" is useful
+        // to show either way. Undefined for MCX/other markets (no
+        // tradingHours configured there, and Intraday is an NSE-only concept).
+        const marketSession =
+          marketId === "NSE" && getMarket("NSE").tradingHours ? getMarketSession(getMarket("NSE").tradingHours!) : undefined;
         // Time Horizon Provider: NSE + Intraday mode measures Current Time ->
-        // today's market close; every other case (Expiry mode, and MCX
-        // unconditionally — Intraday is an NSE-only concept) uses the
-        // existing, already-validated Current Time -> contract Expiry
-        // calculation, byte-identical to before this branch existed.
+        // today's market close, fed by the session snapshot above; every
+        // other case (Expiry mode, and MCX unconditionally — Intraday is an
+        // NSE-only concept) uses the existing, already-validated Current
+        // Time -> contract Expiry calculation, byte-identical to before this
+        // branch existed.
         const useIntraday = marketId === "NSE" && horizonMode === "intraday";
         const timeHorizon = useIntraday
-          ? resolveTimeHorizon("intraday", { intradayCloseTime: getMarket("NSE").tradingHours?.close ?? "15:30" })
+          ? resolveTimeHorizon("intraday", { marketSession })
           : resolveTimeHorizon("expiry", { expiryDateLike: data.expiry });
         const timeToExpiryDays = timeHorizon?.timeToExpiryDays ?? 0;
-        pipelineLog("Calculator inputs filled from live data", { symbol, data, horizonMode, timeHorizon });
+        pipelineLog("Calculator inputs filled from live data", { symbol, data, horizonMode, marketSession, timeHorizon });
 
         setManualInputsFromLive(
           {
@@ -144,6 +153,7 @@ export function useLiveRange() {
             atmStrike: data.atmStrike,
             timeToExpiryDays,
             timeHorizon,
+            marketSession,
             impliedVolatility: data.impliedVolatility,
             openInterest: data.openInterest,
             strikeWindow: data.strikeWindow,

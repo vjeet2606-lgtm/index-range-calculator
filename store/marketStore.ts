@@ -8,6 +8,7 @@ import type { WizardStepId } from "@/lib/wizard/steps";
 import { DEFAULT_WIZARD_STEP_ID, WIZARD_STEPS } from "@/lib/wizard/steps";
 import type { DhanStrikeWindowRow } from "@/lib/dhan/types";
 import type { TimeHorizon, TimeHorizonKind } from "@/lib/timeHorizon/types";
+import type { MarketSessionSnapshot } from "@/lib/marketSession/types";
 
 export type ManualInputs = {
   spot: string;
@@ -30,6 +31,11 @@ export type LiveExtras = {
    *  ever reads timeToExpiryDays; this field never influences a calculation,
    *  it just lets the UI say honestly which horizon produced it. */
   timeHorizon?: TimeHorizon;
+  /** NSE's current trading-session state (lib/marketSession/**) — resolved
+   *  on every NSE fetch regardless of horizonMode, since "is the market
+   *  open right now" is a fact about the exchange, not about which pricing
+   *  horizon the user happens to have selected. */
+  marketSession?: MarketSessionSnapshot;
 };
 
 const EMPTY_MANUAL_INPUTS: ManualInputs = { spot: "", cePremium: "", pePremium: "" };
