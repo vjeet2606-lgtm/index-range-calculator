@@ -6,6 +6,7 @@ import BackButton from "@/components/BackButton";
 import MarketGrid from "@/components/forms/MarketGrid";
 import InstrumentPicker from "@/components/forms/InstrumentPicker";
 import ManualInputForm from "@/components/forms/ManualInputForm";
+import TimeHorizonToggle from "@/components/forms/TimeHorizonToggle";
 import ResultDashboard from "@/components/ResultDashboard";
 import NoBrokerConnected from "@/components/NoBrokerConnected";
 import StatusBar from "@/components/layout/StatusBar";
@@ -102,6 +103,7 @@ export default function WizardFlow() {
             <div className="flex flex-col gap-6">
               <h2 className="text-xl font-bold tracking-tight text-foreground">Calculation Dashboard</h2>
               {!isBrokerConnected && <NoBrokerConnected />}
+              {marketId === "NSE" && isBrokerConnected && <TimeHorizonToggle />}
               <ManualInputForm />
               <ResultDashboard />
               <div className="flex justify-end">

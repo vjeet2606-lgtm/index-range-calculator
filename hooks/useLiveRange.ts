@@ -3,8 +3,9 @@
 import { useEffect, useRef } from "react";
 import { useMarketStore } from "@/store/marketStore";
 import type { LiveRangeData } from "@/lib/dhan/types";
+import { resolveTimeHorizon } from "@/lib/timeHorizon/timeHorizonProvider";
+import { getMarket } from "@/lib/markets/registry";
 
-const MS_PER_DAY = 86_400_000;
 const DEBUG = process.env.NODE_ENV !== "production";
 function pipelineLog(...args: unknown[]): void {
   if (DEBUG) console.debug("[Pipeline:Market/Instrument]", ...args);
@@ -31,6 +32,7 @@ const MCX_UNAVAILABLE_MESSAGE = "MCX option data is currently unavailable from t
 export function useLiveRange() {
   const marketId = useMarketStore((state) => state.marketId);
   const symbol = useMarketStore((state) => state.symbol);
+  const horizonMode = useMarketStore((state) => state.horizonMode);
   const connectionStatus = useMarketStore((state) => state.connection.status);
   const refreshNonce = useMarketStore((state) => state.refreshNonce);
   const isCalculating = useMarketStore((state) => state.isCalculating);
@@ -120,8 +122,17 @@ export function useLiveRange() {
         }
 
         const data = json.data as LiveRangeData;
-        const timeToExpiryDays = Math.max(0, (new Date(data.expiry).getTime() - Date.now()) / MS_PER_DAY);
-        pipelineLog("Calculator inputs filled from live data", { symbol, data, timeToExpiryDays });
+        // Time Horizon Provider: NSE + Intraday mode measures Current Time ->
+        // today's market close; every other case (Expiry mode, and MCX
+        // unconditionally — Intraday is an NSE-only concept) uses the
+        // existing, already-validated Current Time -> contract Expiry
+        // calculation, byte-identical to before this branch existed.
+        const useIntraday = marketId === "NSE" && horizonMode === "intraday";
+        const timeHorizon = useIntraday
+          ? resolveTimeHorizon("intraday", { intradayCloseTime: getMarket("NSE").tradingHours?.close ?? "15:30" })
+          : resolveTimeHorizon("expiry", { expiryDateLike: data.expiry });
+        const timeToExpiryDays = timeHorizon?.timeToExpiryDays ?? 0;
+        pipelineLog("Calculator inputs filled from live data", { symbol, data, horizonMode, timeHorizon });
 
         setManualInputsFromLive(
           {
@@ -132,6 +143,7 @@ export function useLiveRange() {
           {
             atmStrike: data.atmStrike,
             timeToExpiryDays,
+            timeHorizon,
             impliedVolatility: data.impliedVolatility,
             openInterest: data.openInterest,
             strikeWindow: data.strikeWindow,
@@ -155,6 +167,7 @@ export function useLiveRange() {
     connectionStatus,
     marketId,
     symbol,
+    horizonMode,
     refreshNonce,
     isCalculating,
     setManualInputsFromLive,

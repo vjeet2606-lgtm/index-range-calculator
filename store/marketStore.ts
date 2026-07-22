@@ -7,6 +7,7 @@ import { MARKETS, DEFAULT_MARKET_ID } from "@/lib/markets/registry";
 import type { WizardStepId } from "@/lib/wizard/steps";
 import { DEFAULT_WIZARD_STEP_ID, WIZARD_STEPS } from "@/lib/wizard/steps";
 import type { DhanStrikeWindowRow } from "@/lib/dhan/types";
+import type { TimeHorizon, TimeHorizonKind } from "@/lib/timeHorizon/types";
 
 export type ManualInputs = {
   spot: string;
@@ -24,6 +25,11 @@ export type LiveExtras = {
   /** Real ATM-2..ATM+2 strikes with per-leg premium + Greeks, for the Option
    *  Premium Calculation table. */
   strikeWindow?: DhanStrikeWindowRow[];
+  /** Which Time Horizon (see lib/timeHorizon/**) timeToExpiryDays above was
+   *  actually resolved from — display metadata only. The engine itself only
+   *  ever reads timeToExpiryDays; this field never influences a calculation,
+   *  it just lets the UI say honestly which horizon produced it. */
+  timeHorizon?: TimeHorizon;
 };
 
 const EMPTY_MANUAL_INPUTS: ManualInputs = { spot: "", cePremium: "", pePremium: "" };
@@ -58,6 +64,13 @@ type MarketState = {
   marketId: MarketId;
   symbol: string;
   manualInputs: ManualInputs;
+  /** Intraday Traders vs. Expiry/Positional Traders (NSE only — see
+   *  lib/timeHorizon/**). Defaults to "expiry" so every existing user's
+   *  calculation is byte-identical to before this mode existed; the toggle
+   *  only renders for marketId === "NSE" and useLiveRange.ts only branches
+   *  on this when marketId === "NSE", so it's inert everywhere else
+   *  regardless of what this happens to hold. */
+  horizonMode: TimeHorizonKind;
   /** Greeks/IV/OI context behind the current manualInputs, when they came from a
    *  live fetch. Cleared the instant the user hand-edits any field — once edited,
    *  those extras no longer describe the (now different) numbers on screen. */
@@ -115,6 +128,11 @@ type MarketState = {
   pendingRelock: boolean;
   setMarketId: (marketId: MarketId) => void;
   setSymbol: (symbol: string) => void;
+  /** Switching Intraday <-> Expiry is, for calculation purposes, exactly
+   *  like switching instrument: whatever was computed under the old horizon
+   *  no longer describes the newly-selected one, so this resets the same
+   *  fields setSymbol does. */
+  setHorizonMode: (mode: TimeHorizonKind) => void;
   setManualInput: (field: keyof ManualInputs, value: string) => void;
   setManualInputsFromLive: (inputs: ManualInputs, extras: LiveExtras) => void;
   setResult: (result: CalculationEngineResult | null) => void;
@@ -145,6 +163,7 @@ export const useMarketStore = create<MarketState>()(
       marketId: DEFAULT_MARKET_ID,
       symbol: MARKETS[DEFAULT_MARKET_ID].defaultInstrumentSymbol ?? "",
       manualInputs: EMPTY_MANUAL_INPUTS,
+      horizonMode: "expiry",
       liveExtras: null,
       dataSource: "manual",
       result: null,
@@ -168,6 +187,10 @@ export const useMarketStore = create<MarketState>()(
           marketId,
           symbol: MARKETS[marketId].defaultInstrumentSymbol ?? "",
           manualInputs: EMPTY_MANUAL_INPUTS,
+          // Intraday is an NSE-only concept — leaving it selected while
+          // switching away (and eventually back) would leave a toggle state
+          // the new market's UI never rendered a control for.
+          horizonMode: "expiry",
           liveExtras: null,
           dataSource: "manual",
           result: null,
@@ -188,6 +211,26 @@ export const useMarketStore = create<MarketState>()(
           lockedSession: null,
           pendingRelock: false,
         }),
+      setHorizonMode: (horizonMode) =>
+        set((state) => ({
+          horizonMode,
+          manualInputs: EMPTY_MANUAL_INPUTS,
+          liveExtras: null,
+          dataSource: "manual",
+          result: null,
+          calculationError: null,
+          // The old lock was computed under a different horizon entirely —
+          // e.g. an Expiry-mode range has nothing to do with an Intraday
+          // session reference, so it must not linger labeled SESSION LOCKED.
+          lockedSession: null,
+          pendingRelock: false,
+          // useLiveRange.ts's de-dupe guard keys off marketId:symbol +
+          // refreshNonce, not horizonMode — without bumping this, toggling
+          // the mode would clear the dashboard above but never actually
+          // re-fetch under the new horizon until the user separately hit
+          // Refresh. Mirrors triggerRefresh()'s own no-op-while-busy guard.
+          ...(state.isCalculating ? null : { refreshNonce: state.refreshNonce + 1, isCalculating: true }),
+        })),
       setManualInput: (field, value) =>
         set((state) => ({
           manualInputs: { ...state.manualInputs, [field]: value },
@@ -248,6 +291,10 @@ export const useMarketStore = create<MarketState>()(
         marketId: state.marketId,
         symbol: state.symbol,
         manualInputs: state.manualInputs,
+        // A user preference like stepId/selectedBrokerId below, not derived
+        // data — unlike `timeHorizon` (excluded, same reasoning as `result`/
+        // `liveExtras`: a reload can't guarantee it's still current).
+        horizonMode: state.horizonMode,
         stepId: state.stepId,
         selectedBrokerId: state.selectedBrokerId,
         // Unlike `result`/`liveExtras`, the locked session is deliberately

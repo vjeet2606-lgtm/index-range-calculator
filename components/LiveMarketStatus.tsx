@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Card from "@/components/ui/Card";
 import { formatNumber, formatSigned, formatTime } from "@/lib/format";
+import { formatRemainingSession } from "@/lib/timeHorizon/timeHorizonProvider";
 import { useMarketStore } from "@/store/marketStore";
 
 type Zone = "Near Lower Zone" | "Middle of Range" | "Near Upper Zone";
@@ -45,6 +46,7 @@ function Stat({ label, value }: { label: string; value: ReactNode }) {
 export default function LiveMarketStatus() {
   const result = useMarketStore((state) => state.result);
   const lockedSession = useMarketStore((state) => state.lockedSession);
+  const timeHorizon = useMarketStore((state) => state.liveExtras?.timeHorizon);
 
   const currentSpot = result?.underlying.currentSpot;
   const lastUpdated = result?.underlying.lastCalculatedAt;
@@ -75,9 +77,16 @@ export default function LiveMarketStatus() {
       <h2 className="text-xl font-bold tracking-tight text-foreground">Live Market Status</h2>
 
       <Card variant="glass" glow={hasRange} className="animate-fade-in-up flex flex-col gap-6">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Quantitative measurements only — not a trading signal
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Quantitative measurements only — not a trading signal
+          </p>
+          {timeHorizon && (
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+              {timeHorizon.label} · {formatRemainingSession(timeHorizon)} remaining
+            </p>
+          )}
+        </div>
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Stat label="Current Spot" value={currentSpot !== undefined ? formatNumber(currentSpot) : "—"} />
