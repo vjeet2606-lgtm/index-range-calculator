@@ -73,6 +73,7 @@ function buildFormula(
  *  usable from any source — see buildPremiumBreakdown below. Never
  *  fabricates a repriced number; carries the live premium forward unchanged. */
 function buildUnadjustedBreakdown(input: BuildPremiumBreakdownInput): PremiumBreakdown {
+  const modelUsed = selectPricingModel(input.marketId).name;
   const rawIntrinsic =
     input.optionType === "CE"
       ? Math.max(0, input.calculatedSpot - input.strike)
@@ -103,6 +104,7 @@ function buildUnadjustedBreakdown(input: BuildPremiumBreakdownInput): PremiumBre
     currentGreeks: input.greeks,
     appliedTheta: 0,
     appliedVega: 0,
+    modelUsed,
     formula: `${fmt(input.optionPremium)} (current ${input.optionType} premium) — no volatility could be calibrated from this leg or the live feed; value carried forward unchanged`,
   };
 }
@@ -216,6 +218,7 @@ export function buildPremiumBreakdown(input: BuildPremiumBreakdownInput): Premiu
 
     appliedTheta: thetaContribution,
     appliedVega: vegaContribution,
+    modelUsed: model.name,
 
     formula: buildFormula(
       input.optionType,

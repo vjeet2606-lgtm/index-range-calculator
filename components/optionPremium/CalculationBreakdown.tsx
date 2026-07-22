@@ -19,6 +19,14 @@ const PRICING_MODE_LABEL: Record<PremiumBreakdown["pricingMode"], string> = {
   snapshot: "Snapshot (spot-only — no forward time or IV change assumed)",
 };
 
+/** Maps the pricing core's machine-readable model name (lib/quant/core/
+ *  modelSelector.ts) to the display label — falls back to the raw value for
+ *  any future model this component hasn't been told about yet. */
+const MODEL_DISPLAY_NAME: Record<string, string> = {
+  "black-scholes-merton": "Black-Scholes",
+  "black-76": "Black-76",
+};
+
 /**
  * The "Show Calculation" expandable panel — every field here is read directly
  * off the pricing engine's output (see lib/calculators/premiumBreakdown.ts).
@@ -33,8 +41,9 @@ export default function CalculationBreakdown({ breakdown }: Props) {
 
       <div className="grid grid-cols-1 gap-x-10 sm:grid-cols-2">
         <div className="flex flex-col divide-y divide-border/40">
+          <Row label="Strike" value={formatNumber(breakdown.strike)} />
           <Row label="Current Spot" value={formatNumber(breakdown.currentSpot)} />
-          <Row label="Calculated Spot" value={formatNumber(breakdown.calculatedSpot)} />
+          <Row label="Projected Spot" value={formatNumber(breakdown.calculatedSpot)} />
           <Row label="Spot Difference" value={formatSigned(breakdown.spotDifference)} />
           <Row label="Delta Contribution" value={formatSigned(breakdown.deltaContribution)} />
           <Row label="Gamma Contribution" value={formatSigned(breakdown.gammaContribution)} />
@@ -68,14 +77,16 @@ export default function CalculationBreakdown({ breakdown }: Props) {
         </div>
 
         <div className="flex flex-col divide-y divide-border/40">
-          <Row label="Intrinsic Value Contribution" value={formatNumber(breakdown.intrinsicValueContribution)} />
-          <Row label="Extrinsic Value Contribution" value={formatNumber(breakdown.extrinsicValueContribution)} />
+          <Row label="Fair Value" value={formatNumber(breakdown.calculatedPremium)} />
+          <Row label="Intrinsic Value" value={formatNumber(breakdown.intrinsicValueContribution)} />
+          <Row label="Extrinsic Value" value={formatNumber(breakdown.extrinsicValueContribution)} />
           <Row label="Time To Expiry" value={`${breakdown.timeToExpiryDays.toFixed(1)} days`} />
-          <Row label="Current IV" value={breakdown.currentIV !== undefined ? `${breakdown.currentIV.toFixed(2)}%` : "—"} />
-          <Row label="Current Delta" value={breakdown.currentGreeks.delta.toFixed(4)} />
-          <Row label="Current Gamma" value={breakdown.currentGreeks.gamma.toFixed(4)} />
-          <Row label="Current Theta" value={breakdown.currentGreeks.theta.toFixed(4)} />
-          <Row label="Current Vega" value={breakdown.currentGreeks.vega.toFixed(4)} />
+          <Row label="IV" value={breakdown.currentIV !== undefined ? `${breakdown.currentIV.toFixed(2)}%` : "—"} />
+          <Row label="Delta" value={breakdown.currentGreeks.delta.toFixed(4)} />
+          <Row label="Gamma" value={breakdown.currentGreeks.gamma.toFixed(4)} />
+          <Row label="Theta" value={breakdown.currentGreeks.theta.toFixed(4)} />
+          <Row label="Vega" value={breakdown.currentGreeks.vega.toFixed(4)} />
+          <Row label="Model Used" value={MODEL_DISPLAY_NAME[breakdown.modelUsed] ?? breakdown.modelUsed} />
         </div>
       </div>
 

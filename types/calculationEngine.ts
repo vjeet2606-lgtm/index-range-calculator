@@ -69,6 +69,13 @@ export type PremiumBreakdown = {
   appliedTheta: number;
   appliedVega: number;
 
+  /** Which pricing model (lib/quant/core/modelSelector.ts) this leg was
+   *  actually valued with — e.g. "black-scholes-merton" or "black-76".
+   *  Metadata only: reports which already-selected, frozen model produced
+   *  the numbers above, never influences them. The UI maps this to a
+   *  display label ("Black-Scholes" / "Black-76"). */
+  modelUsed: string;
+
   /** Human-readable rendering of the exact arithmetic performed, built only
    *  from the fields above — the UI prints it, it never derives it. */
   formula: string;

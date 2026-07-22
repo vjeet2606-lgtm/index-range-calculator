@@ -27,22 +27,27 @@ function Stat({ label, value }: { label: string; value: ReactNode }) {
 }
 
 /**
- * Underlying Calculation — the top section. Current Spot, Calculated Lower
- * Level, and Calculated Upper Level are always generated from live market
- * data (or manually entered Spot/CE/PE) and re-run through the calculation
- * engine on every refresh; nothing here is a fixed/hardcoded number. Lower
- * and Upper are shown with identical, neutral styling — neither is colored
- * or framed as the "expected" or "more likely" outcome.
+ * Daily Mathematical Expected Range (Layer 1) — the top section. Current
+ * Spot, Expected Lower Boundary, and Expected Upper Boundary are always
+ * generated from live market data (or manually entered Spot/CE/PE) and
+ * re-run through the calculation engine on every refresh; nothing here is a
+ * fixed/hardcoded number. Lower and Upper are shown with identical, neutral
+ * styling — neither is colored or framed as the "expected" or "more likely"
+ * outcome. Card, layout, and underlying calculation are unchanged from
+ * before — only the title/labels and an added Range Width figure (pure
+ * arithmetic on the two already-computed boundaries) reflect the Layer
+ * 1/Layer 2 naming introduced alongside the new Execution Levels card.
  */
 export default function UnderlyingCalculation({ isRefreshing }: Props) {
   const result = useMarketStore((state) => state.result);
   const calculationError = useMarketStore((state) => state.calculationError);
   const triggerRefresh = useMarketStore((state) => state.triggerRefresh);
   const underlying = result?.underlying ?? null;
+  const rangeWidth = underlying ? underlying.calculatedUpperLevel - underlying.calculatedLowerLevel : null;
 
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-xl font-bold tracking-tight text-foreground">Underlying Calculation</h2>
+      <h2 className="text-xl font-bold tracking-tight text-foreground">Daily Mathematical Expected Range</h2>
 
       <Card variant="glass" glow={Boolean(underlying)} className="animate-fade-in-up flex flex-col gap-6">
         <div className="flex items-center justify-between gap-3">
@@ -68,22 +73,23 @@ export default function UnderlyingCalculation({ isRefreshing }: Props) {
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
-          className="grid grid-cols-1 gap-4 sm:grid-cols-3"
+          className="grid grid-cols-2 gap-4 sm:grid-cols-4"
         >
           <Stat label="Current Spot" value={underlying ? formatNumber(underlying.currentSpot) : "—"} />
           <Stat
-            label="Calculated Lower Level"
+            label="Expected Lower Boundary"
             value={underlying ? formatNumber(underlying.calculatedLowerLevel) : "—"}
           />
           <Stat
-            label="Calculated Upper Level"
+            label="Expected Upper Boundary"
             value={underlying ? formatNumber(underlying.calculatedUpperLevel) : "—"}
           />
+          <Stat label="Range Width" value={rangeWidth !== null ? formatNumber(rangeWidth) : "—"} />
         </motion.div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
           <p className="text-xs text-muted-foreground">
-            Last Calculation: {underlying ? formatTime(underlying.lastCalculatedAt) : "—"}
+            Last Updated: {underlying ? formatTime(underlying.lastCalculatedAt) : "—"}
           </p>
           <Button
             variant="outline"

@@ -1,6 +1,7 @@
 "use client";
 
 import UnderlyingCalculation from "@/components/UnderlyingCalculation";
+import ExecutionLevels from "@/components/ExecutionLevels";
 import OptionPremiumCalculation from "@/components/OptionPremiumCalculation";
 import CalculationLoadingOverlay from "@/components/calculation/CalculationLoadingOverlay";
 import { useCalculationEngine } from "@/hooks/useCalculationEngine";
@@ -22,6 +23,7 @@ export default function ResultDashboard() {
     <div className="flex flex-col gap-6">
       <div className="relative flex flex-col gap-6">
         <UnderlyingCalculation isRefreshing={showOverlay} />
+        <ExecutionLevels />
         <OptionPremiumCalculation />
         <CalculationLoadingOverlay isVisible={showOverlay} />
       </div>

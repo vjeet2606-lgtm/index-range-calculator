@@ -13,6 +13,8 @@ type Props = {
   rows: PremiumBreakdown[];
 };
 
+const COLUMN_COUNT = 11;
+
 /** Strike + option type together identify a row uniquely within one scenario/table. */
 function rowKey(row: PremiumBreakdown): string {
   return `${row.strike}-${row.optionType}`;
@@ -31,13 +33,19 @@ export default function PremiumTable({ title, rows }: Props) {
         </Card>
       ) : (
         <Card variant="glass" className="overflow-x-auto p-0">
-          <table className="w-full min-w-[580px] text-left text-sm">
+          <table className="w-full min-w-[1180px] text-left text-sm">
             <thead>
               <tr className="border-b border-border text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <th className="px-4 py-3 font-semibold">Strike</th>
                 <th className="px-4 py-3 font-semibold">Current Premium</th>
                 <th className="px-4 py-3 font-semibold">Calculated Premium</th>
                 <th className="px-4 py-3 font-semibold">Difference</th>
+                <th className="px-4 py-3 font-semibold">Distance from Spot</th>
+                <th className="px-4 py-3 font-semibold">Intrinsic Value</th>
+                <th className="px-4 py-3 font-semibold">Extrinsic Value</th>
+                <th className="px-4 py-3 font-semibold">Current IV</th>
+                <th className="px-4 py-3 font-semibold">Current Delta</th>
+                <th className="px-4 py-3 font-semibold">Current Gamma</th>
                 <th className="px-4 py-3 font-semibold text-right">Show Calculation</th>
               </tr>
             </thead>
@@ -52,6 +60,16 @@ export default function PremiumTable({ title, rows }: Props) {
                       <td className="px-4 py-3 text-foreground">{formatNumber(row.currentPremium)}</td>
                       <td className="px-4 py-3 text-foreground">{formatNumber(row.calculatedPremium)}</td>
                       <td className="px-4 py-3 text-muted-foreground">{formatSigned(row.difference)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {formatSigned(row.strike - row.currentSpot)}
+                      </td>
+                      <td className="px-4 py-3 text-foreground">{formatNumber(row.intrinsicValueContribution)}</td>
+                      <td className="px-4 py-3 text-foreground">{formatNumber(row.extrinsicValueContribution)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {row.currentIV !== undefined ? `${row.currentIV.toFixed(2)}%` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.currentGreeks.delta.toFixed(4)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.currentGreeks.gamma.toFixed(4)}</td>
                       <td className="px-4 py-3 text-right">
                         <button
                           type="button"
@@ -72,7 +90,7 @@ export default function PremiumTable({ title, rows }: Props) {
                     </tr>
                     {isExpanded && (
                       <tr className="border-b border-border/60 last:border-0">
-                        <td colSpan={5} className="bg-background/40 px-4 py-4">
+                        <td colSpan={COLUMN_COUNT} className="bg-background/40 px-4 py-4">
                           <CalculationBreakdown breakdown={row} />
                         </td>
                       </tr>
