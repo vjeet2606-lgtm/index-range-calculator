@@ -20,7 +20,7 @@ export type { TimeHorizon, TimeHorizonKind } from "./types";
  */
 export function resolveTimeHorizon(
   kind: TimeHorizonKind,
-  params: { expiryDateLike?: string; marketSession?: MarketSessionSnapshot },
+  params: { expiryDateLike?: string; expiryCloseTime?: string; marketSession?: MarketSessionSnapshot },
   now: number = Date.now(),
 ): TimeHorizon | undefined {
   if (kind === "intraday") {
@@ -28,7 +28,7 @@ export function resolveTimeHorizon(
     return resolveIntradayHorizon(params.marketSession);
   }
   if (!params.expiryDateLike) return undefined;
-  return resolveExpiryHorizon(params.expiryDateLike, now);
+  return resolveExpiryHorizon(params.expiryDateLike, params.expiryCloseTime, now);
 }
 
 /** "2h 14m" / "38m" / "Session closed" — for the Remaining Trading Session

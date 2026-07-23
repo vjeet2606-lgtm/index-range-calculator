@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import fc from "fast-check";
 import { getMarketSession, formatIstTime } from "../marketSessionService";
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -77,6 +78,62 @@ describe("getMarketSession", () => {
     expect(session.status).toBe("open");
     expect(session.marketClosesAt).toBe(istInstant(2026, 7, 21, 13, 0));
     expect(session.tradingMinutesRemaining).toBe(30);
+  });
+});
+
+describe("getMarketSession — invariants (property-based)", () => {
+  it("marketOpensAt <= marketClosesAt always, across a year of random instants", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: Date.UTC(2026, 0, 1), max: Date.UTC(2026, 11, 31) }), (now) => {
+        const session = getMarketSession(TRADING_HOURS, now);
+        expect(session.marketOpensAt).toBeLessThanOrEqual(session.marketClosesAt);
+      }),
+      { numRuns: 300 },
+    );
+  });
+
+  it("sessionProgressPercent is always within [0, 100]", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: Date.UTC(2026, 0, 1), max: Date.UTC(2026, 11, 31) }), (now) => {
+        const session = getMarketSession(TRADING_HOURS, now);
+        expect(session.sessionProgressPercent).toBeGreaterThanOrEqual(0);
+        expect(session.sessionProgressPercent).toBeLessThanOrEqual(100);
+      }),
+      { numRuns: 300 },
+    );
+  });
+
+  it("tradingMinutesRemaining is never negative", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: Date.UTC(2026, 0, 1), max: Date.UTC(2026, 11, 31) }), (now) => {
+        const session = getMarketSession(TRADING_HOURS, now);
+        expect(session.tradingMinutesRemaining).toBeGreaterThanOrEqual(0);
+      }),
+      { numRuns: 300 },
+    );
+  });
+
+  it("status is 'open' if and only if now is within [marketOpensAt, marketClosesAt)", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: Date.UTC(2026, 0, 1), max: Date.UTC(2026, 11, 31) }), (now) => {
+        const session = getMarketSession(TRADING_HOURS, now);
+        const isWithinWindow = now >= session.marketOpensAt && now < session.marketClosesAt;
+        expect(session.status === "open").toBe(isWithinWindow);
+      }),
+      { numRuns: 300 },
+    );
+  });
+
+  it("tradingMinutesRemaining is exactly 0 whenever status is not 'open'", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: Date.UTC(2026, 0, 1), max: Date.UTC(2026, 11, 31) }), (now) => {
+        const session = getMarketSession(TRADING_HOURS, now);
+        if (session.status !== "open") {
+          expect(session.tradingMinutesRemaining).toBe(0);
+        }
+      }),
+      { numRuns: 300 },
+    );
   });
 });
 

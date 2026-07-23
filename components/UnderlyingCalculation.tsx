@@ -43,11 +43,23 @@ export default function UnderlyingCalculation({ isRefreshing }: Props) {
   const result = useMarketStore((state) => state.result);
   const calculationError = useMarketStore((state) => state.calculationError);
   const lockedSession = useMarketStore((state) => state.lockedSession);
+  const dataSource = useMarketStore((state) => state.dataSource);
+  const horizonMode = useMarketStore((state) => state.horizonMode);
+  const marketStatus = useMarketStore((state) => state.liveExtras?.marketSession?.status);
   const triggerRefresh = useMarketStore((state) => state.triggerRefresh);
   const requestRelock = useMarketStore((state) => state.requestRelock);
 
   const underlying = result?.underlying ?? null;
   const currentSpot = underlying?.currentSpot ?? null;
+
+  // Bug 2 (Phase 4): mirrors useSessionLock.ts's own condition for
+  // declining to create a degenerate lock — live Intraday mode, market
+  // closed for the day, and no lock exists yet to fall back to displaying.
+  const isNoActiveIntradaySession =
+    dataSource === "live" &&
+    horizonMode === "intraday" &&
+    !lockedSession &&
+    (marketStatus === "post-market" || marketStatus === "holiday");
 
   function handleRelockConfirmed() {
     setShowRelockConfirm(false);
@@ -85,29 +97,39 @@ export default function UnderlyingCalculation({ isRefreshing }: Props) {
           <p className="text-sm font-medium text-bearish">{calculationError}</p>
         )}
 
-        <motion.div
-          key={lockedSession?.calculatedAt ?? "empty"}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: "easeOut" }}
-          className="grid grid-cols-2 gap-4 sm:grid-cols-4"
-        >
-          <Stat label="Current Spot" value={currentSpot !== null ? formatNumber(currentSpot) : "—"} />
-          <Stat
-            label="Expected Lower Boundary"
-            value={lockedSession ? formatNumber(lockedSession.expectedLowerBoundary) : "—"}
-          />
-          <Stat
-            label="Expected Upper Boundary"
-            value={lockedSession ? formatNumber(lockedSession.expectedUpperBoundary) : "—"}
-          />
-          <Stat label="Range Width" value={lockedSession ? formatNumber(lockedSession.rangeWidth) : "—"} />
-        </motion.div>
+        {isNoActiveIntradaySession ? (
+          <div className="flex flex-col items-start gap-1.5 rounded-2xl border border-border bg-elevated/60 p-4">
+            <p className="text-sm font-bold text-foreground">Market Closed</p>
+            <p className="text-sm text-muted-foreground">No active Intraday session.</p>
+            <p className="text-sm text-muted-foreground">Next session starts at 09:15 IST.</p>
+          </div>
+        ) : (
+          <motion.div
+            key={lockedSession?.calculatedAt ?? "empty"}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="grid grid-cols-2 gap-4 sm:grid-cols-4"
+          >
+            <Stat label="Current Spot" value={currentSpot !== null ? formatNumber(currentSpot) : "—"} />
+            <Stat
+              label="Expected Lower Boundary"
+              value={lockedSession ? formatNumber(lockedSession.expectedLowerBoundary) : "—"}
+            />
+            <Stat
+              label="Expected Upper Boundary"
+              value={lockedSession ? formatNumber(lockedSession.expectedUpperBoundary) : "—"}
+            />
+            <Stat label="Range Width" value={lockedSession ? formatNumber(lockedSession.rangeWidth) : "—"} />
+          </motion.div>
+        )}
 
         <div className="flex flex-col gap-3 border-t border-border pt-4">
-          <p className="text-xs text-muted-foreground">
-            Calculated At: {lockedSession ? formatTime(lockedSession.calculatedAt) : "—"}
-          </p>
+          {!isNoActiveIntradaySession && (
+            <p className="text-xs text-muted-foreground">
+              Calculated At: {lockedSession ? formatTime(lockedSession.calculatedAt) : "—"}
+            </p>
+          )}
 
           {!showRelockConfirm ? (
             <div className="flex flex-wrap items-center gap-3">
@@ -120,15 +142,17 @@ export default function UnderlyingCalculation({ isRefreshing }: Props) {
                 <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} strokeWidth={2.5} />
                 {isRefreshing ? "Refreshing..." : "Refresh Live Market"}
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setShowRelockConfirm(true)}
-                disabled={isRefreshing}
-                className="h-10 gap-2 px-4 text-xs"
-              >
-                <RotateCcw className="h-3.5 w-3.5" strokeWidth={2.5} />
-                Recalculate Today&apos;s Range
-              </Button>
+              {!isNoActiveIntradaySession && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowRelockConfirm(true)}
+                  disabled={isRefreshing}
+                  className="h-10 gap-2 px-4 text-xs"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  Recalculate Today&apos;s Range
+                </Button>
+              )}
             </div>
           ) : (
             <div className="flex flex-col gap-3 rounded-2xl border border-border bg-elevated/60 p-4">

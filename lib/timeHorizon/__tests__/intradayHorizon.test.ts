@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import fc from "fast-check";
 import { resolveIntradayHorizon } from "../intradayHorizon";
 import { getMarketSession } from "@/lib/marketSession/marketSessionService";
 import type { MarketSessionSnapshot } from "@/lib/marketSession/types";
@@ -81,5 +82,27 @@ describe("resolveIntradayHorizon", () => {
 
     expect(horizon.label).toBe("Intraday — 13:00 IST");
     expect(horizon.timeToExpiryDays).toBeCloseTo((istInstant(2026, 7, 21, 13, 0) - now) / MS_PER_DAY, 10);
+  });
+
+  it("timeToExpiryDays is never negative, for any instant across a full year (property-based)", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: Date.UTC(2026, 0, 1), max: Date.UTC(2026, 11, 31) }), (now) => {
+        const session = getMarketSession(TRADING_HOURS, now);
+        const horizon = resolveIntradayHorizon(session);
+        expect(horizon.timeToExpiryDays).toBeGreaterThanOrEqual(0);
+      }),
+      { numRuns: 300 },
+    );
+  });
+
+  it("timeToExpiryDays never exceeds 1 full day, for any instant (the horizon never spans more than today's session)", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: Date.UTC(2026, 0, 1), max: Date.UTC(2026, 11, 31) }), (now) => {
+        const session = getMarketSession(TRADING_HOURS, now);
+        const horizon = resolveIntradayHorizon(session);
+        expect(horizon.timeToExpiryDays).toBeLessThanOrEqual(1);
+      }),
+      { numRuns: 300 },
+    );
   });
 });

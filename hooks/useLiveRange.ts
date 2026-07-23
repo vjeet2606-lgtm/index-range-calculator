@@ -131,15 +131,21 @@ export function useLiveRange() {
         const marketSession =
           marketId === "NSE" && getMarket("NSE").tradingHours ? getMarketSession(getMarket("NSE").tradingHours!) : undefined;
         // Time Horizon Provider: NSE + Intraday mode measures Current Time ->
-        // today's market close, fed by the session snapshot above; every
-        // other case (Expiry mode, and MCX unconditionally — Intraday is an
-        // NSE-only concept) uses the existing, already-validated Current
-        // Time -> contract Expiry calculation, byte-identical to before this
-        // branch existed.
+        // today's market close, fed by the session snapshot above. Expiry
+        // mode anchors to the exchange's actual close time on the expiry
+        // date when it's known (NSE: 15:30 IST, the same official cutoff
+        // Intraday and the Market Session Service already use) — never a
+        // bare UTC-midnight reading of Dhan's date-only expiry string
+        // (Phase 4 bug fix; see resolveExpiryHorizon's doc comment). MCX has
+        // no single configured close time across its commodities, so it
+        // falls back to the original, unchanged generic date parsing.
         const useIntraday = marketId === "NSE" && horizonMode === "intraday";
         const timeHorizon = useIntraday
           ? resolveTimeHorizon("intraday", { marketSession })
-          : resolveTimeHorizon("expiry", { expiryDateLike: data.expiry });
+          : resolveTimeHorizon("expiry", {
+              expiryDateLike: data.expiry,
+              expiryCloseTime: marketId === "NSE" ? getMarket("NSE").tradingHours?.close : undefined,
+            });
         const timeToExpiryDays = timeHorizon?.timeToExpiryDays ?? 0;
         pipelineLog("Calculator inputs filled from live data", { symbol, data, horizonMode, marketSession, timeHorizon });
 
