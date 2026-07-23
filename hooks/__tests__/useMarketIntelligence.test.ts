@@ -154,3 +154,74 @@ describe("useMarketIntelligence — snapshot content", () => {
     expect(Object.isFrozen(snapshot)).toBe(true);
   });
 });
+
+describe("useMarketIntelligence — Phase 7 Market Data Intelligence, cross-market (NSE + MCX)", () => {
+  const FULL_CHAIN = [
+    { strike: 24700, ce: { premium: 150, oi: 40000 }, pe: { premium: 50, oi: 35000 } },
+    { strike: 24800, ce: { premium: 95, oi: 60000 }, pe: { premium: 90, oi: 58000 } },
+    { strike: 24900, ce: { premium: 50, oi: 33000 }, pe: { premium: 145, oi: 38000 } },
+  ];
+
+  it.each(["NSE", "MCX"] as const)("populates marketData (chain/OI/max pain) identically for %s", async (marketId) => {
+    useMarketStore.setState({
+      dataSource: "live",
+      marketId,
+      symbol: marketId === "MCX" ? "GOLD" : "NIFTY",
+      liveExtras: { atmStrike: 24800, impliedVolatility: 14.2, openInterest: { ce: 60000, pe: 58000 }, fullChain: FULL_CHAIN },
+    });
+    renderHook(() => useMarketIntelligence());
+
+    await act(async () => {
+      useMarketStore.getState().setResult(fakeResult());
+    });
+
+    const [snapshot] = useMarketStore.getState().snapshots;
+    expect(snapshot.marketData).toBeDefined();
+    expect(snapshot.marketData?.optionChain?.rows).toHaveLength(3);
+    expect(snapshot.marketData?.oi.atmCallOI).toBe(60000);
+    expect(snapshot.marketData?.oi.aggregatedCallOI).toBe(40000 + 60000 + 33000);
+    expect(snapshot.marketData?.maxPain.maxPainStrike).toBeDefined();
+    expect(Object.isFrozen(snapshot.marketData)).toBe(true);
+  });
+
+  it("computes intra-session OI change on the second snapshot, using the first as baseline", async () => {
+    useMarketStore.setState({
+      dataSource: "live",
+      marketId: "NSE",
+      symbol: "NIFTY",
+      liveExtras: { atmStrike: 24800, impliedVolatility: 14.2, openInterest: { ce: 60000, pe: 58000 }, fullChain: FULL_CHAIN },
+    });
+    renderHook(() => useMarketIntelligence());
+
+    await act(async () => {
+      useMarketStore.getState().setResult(fakeResult(1000));
+    });
+    expect(useMarketStore.getState().snapshots[0].marketData?.oiChange.intraSessionCallOIChange).toBeUndefined(); // no baseline yet
+
+    const grownChain = FULL_CHAIN.map((row) => ({ ...row, ce: row.ce ? { ...row.ce, oi: row.ce.oi + 1000 } : row.ce }));
+    useMarketStore.setState({ liveExtras: { atmStrike: 24800, impliedVolatility: 14.2, openInterest: { ce: 61000, pe: 58000 }, fullChain: grownChain } });
+    await act(async () => {
+      useMarketStore.getState().setResult(fakeResult(2000));
+    });
+
+    const [, second] = useMarketStore.getState().snapshots;
+    expect(second.marketData?.oiChange.intraSessionCallOIChange).toBe(3000); // 3 strikes x +1000 each
+  });
+
+  it("volume remains architecture-ready-only (always undefined) even with a full live chain present", async () => {
+    useMarketStore.setState({
+      dataSource: "live",
+      marketId: "NSE",
+      symbol: "NIFTY",
+      liveExtras: { atmStrike: 24800, impliedVolatility: 14.2, fullChain: FULL_CHAIN },
+    });
+    renderHook(() => useMarketIntelligence());
+
+    await act(async () => {
+      useMarketStore.getState().setResult(fakeResult());
+    });
+
+    const [snapshot] = useMarketStore.getState().snapshots;
+    expect(snapshot.marketData?.volume.currentVolume).toBeUndefined();
+  });
+});

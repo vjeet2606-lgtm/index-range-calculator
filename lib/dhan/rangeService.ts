@@ -52,7 +52,23 @@ function toStrikeLeg(leg: DhanOptionLeg | undefined): DhanStrikeLeg | null {
     gamma: leg.greeks?.gamma,
     theta: leg.greeks?.theta,
     vega: leg.greeks?.vega,
+    oi: leg.oi,
   };
+}
+
+/** Every strike in the chain, sorted numerically, normalized to
+ *  DhanStrikeWindowRow — the shared basis both buildStrikeWindow (ATM-2..
+ *  ATM+2 slice) and buildFullChain (Phase 7, unsliced) build on, so the
+ *  strike-sorting/normalizing logic exists exactly once. */
+function sortedChainRows(oc: Record<string, DhanOptionChainEntry>): DhanStrikeWindowRow[] {
+  return Object.keys(oc)
+    .map((key) => ({ key, strike: Number(key) }))
+    .filter(({ strike }) => !Number.isNaN(strike))
+    .sort((a, b) => a.strike - b.strike)
+    .map(({ key, strike }) => {
+      const entry = oc[key];
+      return { strike, ce: toStrikeLeg(entry.ce), pe: toStrikeLeg(entry.pe) };
+    });
 }
 
 /**
@@ -63,21 +79,18 @@ function toStrikeLeg(leg: DhanOptionLeg | undefined): DhanStrikeLeg | null {
  * Returns fewer than 5 rows near either edge of the chain rather than guessing.
  */
 function buildStrikeWindow(oc: Record<string, DhanOptionChainEntry>, atmStrike: number): DhanStrikeWindowRow[] {
-  const strikes = Object.keys(oc)
-    .map((key) => ({ key, strike: Number(key) }))
-    .filter(({ strike }) => !Number.isNaN(strike))
-    .sort((a, b) => a.strike - b.strike);
-
-  const atmIndex = strikes.findIndex(({ strike }) => strike === atmStrike);
+  const rows = sortedChainRows(oc);
+  const atmIndex = rows.findIndex((row) => row.strike === atmStrike);
   if (atmIndex === -1) return [];
 
   const start = Math.max(0, atmIndex - 2);
-  const end = Math.min(strikes.length, atmIndex + 3);
+  const end = Math.min(rows.length, atmIndex + 3);
+  return rows.slice(start, end);
+}
 
-  return strikes.slice(start, end).map(({ key, strike }) => {
-    const entry = oc[key];
-    return { strike, ce: toStrikeLeg(entry.ce), pe: toStrikeLeg(entry.pe) };
-  });
+/** Phase 7 — every strike Dhan returned, unsliced. See LiveRangeData.fullChain. */
+function buildFullChain(oc: Record<string, DhanOptionChainEntry>): DhanStrikeWindowRow[] {
+  return sortedChainRows(oc);
 }
 
 export async function getLiveRange(
@@ -166,8 +179,10 @@ export async function getLiveRange(
         ? { ce: entry.ce?.oi, pe: entry.pe?.oi }
         : undefined,
     strikeWindow: buildStrikeWindow(chain.oc, strike),
+    fullChain: buildFullChain(chain.oc),
   };
   pipelineLog("getLiveRange(): ATM-2..ATM+2 strike window", { symbol, strikeWindow: data.strikeWindow });
+  pipelineLog("getLiveRange(): full chain", { symbol, chainLength: data.fullChain?.length });
 
   pipelineLog("getLiveRange(): done", { symbol, market, data });
   setCachedRange(cacheKey, data);

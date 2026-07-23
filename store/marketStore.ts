@@ -35,6 +35,10 @@ export type LiveExtras = {
   /** Real ATM-2..ATM+2 strikes with per-leg premium + Greeks, for the Option
    *  Premium Calculation table. */
   strikeWindow?: DhanStrikeWindowRow[];
+  /** Phase 7 — every strike Dhan returned for this expiry (unsliced), for
+   *  Option Chain Intelligence and Max Pain (lib/marketData/**), which need
+   *  OI across the whole chain, not the 5-strike strikeWindow above. */
+  fullChain?: DhanStrikeWindowRow[];
   /** Which Time Horizon (see lib/timeHorizon/**) timeToExpiryDays above was
    *  actually resolved from — display metadata only. The engine itself only
    *  ever reads timeToExpiryDays; this field never influences a calculation,

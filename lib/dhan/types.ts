@@ -45,6 +45,11 @@ export type DhanStrikeLeg = {
   gamma?: number;
   theta?: number;
   vega?: number;
+  /** Open Interest for this leg — was already present on the raw Dhan
+   *  response (DhanOptionLeg.oi) but not previously copied through to this
+   *  normalized shape (Phase 7). Needed for Max Pain / OI Intelligence,
+   *  which require OI at every strike, not just the ATM strike. */
+  oi?: number;
 };
 
 export type DhanStrikeWindowRow = {
@@ -69,4 +74,10 @@ export type LiveRangeData = {
    *  built from whichever strikes actually exist in Dhan's response — never
    *  computed by assuming a per-symbol strike interval. */
   strikeWindow?: DhanStrikeWindowRow[];
+  /** Phase 7 — every strike Dhan actually returned for this expiry, not just
+   *  the ATM-2..ATM+2 window above. This data was already being fetched by
+   *  getLiveRange() (to find the ATM strike) but discarded before Phase 7;
+   *  now exposed for Option Chain Intelligence and Max Pain, which need OI
+   *  across the whole chain, not a 5-strike slice. */
+  fullChain?: DhanStrikeWindowRow[];
 };

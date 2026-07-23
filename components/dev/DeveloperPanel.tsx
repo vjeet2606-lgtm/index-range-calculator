@@ -113,6 +113,74 @@ export default function DeveloperPanel() {
             </div>
           </Section>
 
+          <Section title="Normalized Market Data (Phase 7)">
+            {!latest?.marketData && <p className="text-[11px] text-muted-foreground">No market data captured yet.</p>}
+            {latest?.marketData && (
+              <>
+                <Row label="Session open" value={latest.marketData.ohlc.sessionOpen !== undefined ? formatNumber(latest.marketData.ohlc.sessionOpen) : "—"} />
+                <Row label="Session high" value={latest.marketData.ohlc.sessionHigh !== undefined ? formatNumber(latest.marketData.ohlc.sessionHigh) : "—"} />
+                <Row label="Session low" value={latest.marketData.ohlc.sessionLow !== undefined ? formatNumber(latest.marketData.ohlc.sessionLow) : "—"} />
+                <Row label="Session range" value={latest.marketData.ohlc.range !== undefined ? formatNumber(latest.marketData.ohlc.range) : "—"} />
+                <Row label="Realized volatility" value={latest.marketData.ohlc.realizedVolatilityPoints !== undefined ? `±${formatNumber(latest.marketData.ohlc.realizedVolatilityPoints)}` : "—"} />
+              </>
+            )}
+          </Section>
+
+          <Section title="Option Chain Summary">
+            {!latest?.marketData?.optionChain && <p className="text-[11px] text-muted-foreground">No live option chain — manual mode or not yet fetched.</p>}
+            {latest?.marketData?.optionChain && (
+              <>
+                <Row label="ATM strike" value={latest.marketData.optionChain.atmStrike ?? "—"} />
+                <Row label="Strike interval" value={latest.marketData.optionChain.strikeIntervalPoints ?? "—"} />
+                <Row label="Strikes in chain" value={latest.marketData.optionChain.rows.length} />
+              </>
+            )}
+          </Section>
+
+          <Section title="Volume Summary">
+            <p className="text-[11px] text-muted-foreground">
+              Architecture-ready only — Dhan&apos;s option-chain integration reports no volume field. See lib/marketData/volumeIntelligence.ts.
+            </p>
+          </Section>
+
+          <Section title="OI Summary">
+            {!latest?.marketData && <p className="text-[11px] text-muted-foreground">No OI data captured yet.</p>}
+            {latest?.marketData && (
+              <>
+                <Row label="ATM Call OI" value={latest.marketData.oi.atmCallOI ?? "—"} />
+                <Row label="ATM Put OI" value={latest.marketData.oi.atmPutOI ?? "—"} />
+                <Row label="Aggregated Call OI" value={latest.marketData.oi.aggregatedCallOI ?? "—"} />
+                <Row label="Aggregated Put OI" value={latest.marketData.oi.aggregatedPutOI ?? "—"} />
+                <Row label="Intra-session Call OI change" value={latest.marketData.oiChange.intraSessionCallOIChange !== undefined ? formatSigned(latest.marketData.oiChange.intraSessionCallOIChange) : "—"} />
+              </>
+            )}
+          </Section>
+
+          <Section title="IV Summary">
+            {!latest?.marketData && <p className="text-[11px] text-muted-foreground">No IV data captured yet.</p>}
+            {latest?.marketData && (
+              <>
+                <Row label="Current IV" value={latest.marketData.iv.currentIV !== undefined ? `${formatNumber(latest.marketData.iv.currentIV)}%` : "—"} />
+                <Row label="Intra-session trend" value={latest.marketData.iv.ivTrend ?? "—"} />
+                <Row label="Historical IV / Rank / Percentile" value="architecture-ready only" />
+              </>
+            )}
+          </Section>
+
+          <Section title="Max Pain Summary">
+            {!latest?.marketData && <p className="text-[11px] text-muted-foreground">No max pain data captured yet.</p>}
+            {latest?.marketData && (
+              <>
+                <Row label="Max pain strike" value={latest.marketData.maxPain.maxPainStrike ?? "—"} />
+                <Row
+                  label="Distance from spot"
+                  value={latest.marketData.maxPain.distanceFromSpot !== undefined ? formatSigned(latest.marketData.maxPain.distanceFromSpot) : "—"}
+                />
+                <Row label="Strikes evaluated" value={latest.marketData.maxPain.strikesEvaluated} />
+              </>
+            )}
+          </Section>
+
           <Section title="Snapshot Comparison (latest vs previous)">
             {!comparison && <p className="text-[11px] text-muted-foreground">Need at least 2 snapshots.</p>}
             {comparison && (

@@ -2,6 +2,7 @@ import type { MarketId } from "@/lib/markets/types";
 import type { MarketStatus } from "@/lib/marketSession/types";
 import type { TimeHorizonKind } from "@/lib/timeHorizon/types";
 import type { MarketDNA } from "@/lib/analytics/types";
+import type { MarketDataIntelligence } from "@/lib/marketData/types";
 import type { SessionSnapshot, SnapshotComparison } from "./types";
 
 export type CreateSnapshotInput = {
@@ -16,6 +17,10 @@ export type CreateSnapshotInput = {
   sessionProgressPercent: number | undefined;
   timeHorizonKind: TimeHorizonKind | undefined;
   timeHorizonLabel: string | undefined;
+  /** Phase 7 — optional so every existing call site (real and test) that
+   *  doesn't pass it is unaffected; the resulting snapshot's marketData
+   *  field is simply undefined, same as it was before this field existed. */
+  marketData?: MarketDataIntelligence;
 };
 
 /** Freezes an object and every plain-object/array value it directly or
@@ -69,6 +74,7 @@ export function createSnapshot(input: CreateSnapshotInput): Readonly<SessionSnap
     sessionProgressPercent: input.sessionProgressPercent,
     timeHorizonKind: input.timeHorizonKind,
     timeHorizonLabel: input.timeHorizonLabel,
+    marketData: input.marketData,
   };
 
   return deepFreeze(snapshot);

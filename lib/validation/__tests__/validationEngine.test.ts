@@ -177,6 +177,54 @@ describe("summarizeValidation — known-input arithmetic verification", () => {
   });
 });
 
+describe("summarizeValidation — Phase 7 market-data-derived fields (additive)", () => {
+  function marketDataFixture(overrides: { aggregatedCallOI?: number; aggregatedPutOI?: number; range?: number; realizedVolatilityPoints?: number }) {
+    return {
+      resolvedAt: 0,
+      optionChain: undefined,
+      ohlc: {
+        sessionOpen: undefined, sessionHigh: undefined, sessionLow: undefined, sessionClose: undefined,
+        previousClose: undefined, gap: undefined, range: overrides.range, body: undefined, upperWick: undefined, lowerWick: undefined,
+        realizedVolatilityPoints: overrides.realizedVolatilityPoints, sampleCount: 0,
+      },
+      volume: { currentVolume: undefined, averageVolume: undefined, relativeVolume: undefined, volumeExpansion: undefined, volumeContraction: undefined, intradayVolumeProgressPercent: undefined },
+      oi: { atmCallOI: undefined, atmPutOI: undefined, aggregatedCallOI: overrides.aggregatedCallOI, aggregatedPutOI: overrides.aggregatedPutOI, aggregatedPutCallOIRatio: undefined, strikesWithOiData: 0 },
+      oiChange: { intraSessionCallOIChange: undefined, intraSessionPutOIChange: undefined, intraSessionCallOIChangePercent: undefined, intraSessionPutOIChangePercent: undefined, compareBaselineTimestamp: undefined },
+      maxPain: { maxPainStrike: undefined, distanceFromSpot: undefined, distanceFromSpotPercent: undefined, strikesEvaluated: 0, historicalMaxPain: undefined },
+      iv: { currentIV: undefined, ivTrend: undefined, ivExpansion: undefined, ivCompression: undefined, historicalIV: undefined, ivRank: undefined, ivPercentile: undefined },
+      sessionStatistics: { sessionProgressPercent: undefined, tradingMinutesRemaining: undefined, snapshotsThisSession: 0, ohlc: { sessionOpen: undefined, sessionHigh: undefined, sessionLow: undefined, sessionClose: undefined, previousClose: undefined, gap: undefined, range: overrides.range, body: undefined, upperWick: undefined, lowerWick: undefined, realizedVolatilityPoints: overrides.realizedVolatilityPoints, sampleCount: 0 } },
+    };
+  }
+
+  it("computes oiChangeCall/Put and rangeExpansion as last-minus-first across the checkpoint window", () => {
+    const a = snapshot(istInstant(2026, 7, 23, 9, 20), 24800, 200, 370, 14.0, 0);
+    const b = snapshot(istInstant(2026, 7, 23, 15, 15), 24900, 20, 15, 14.5, 95.9);
+
+    const aWithMd = { ...a, marketData: marketDataFixture({ aggregatedCallOI: 100000, aggregatedPutOI: 90000, range: 40, realizedVolatilityPoints: 5 }) };
+    const bWithMd = { ...b, marketData: marketDataFixture({ aggregatedCallOI: 130000, aggregatedPutOI: 80000, range: 100, realizedVolatilityPoints: 12 }) };
+
+    const summary = summarizeValidation([aWithMd, bWithMd]);
+
+    expect(summary.oiChangeCall).toBe(30000);
+    expect(summary.oiChangePut).toBe(-10000);
+    expect(summary.rangeExpansion).toBe(60);
+    expect(summary.sessionVolatilityPoints).toBe(12); // the LAST checkpoint's realized-vol-so-far
+    expect(summary.volumeChange).toBeUndefined(); // no data source — always undefined
+  });
+
+  it("leaves the new fields undefined when snapshots have no marketData (pre-Phase-7 compatibility)", () => {
+    const a = snapshot(istInstant(2026, 7, 23, 9, 20), 24800, 200, 370, 14.0, 0);
+    const b = snapshot(istInstant(2026, 7, 23, 10, 0), 24830, 180, 330, 14.2, 10.8);
+    const summary = summarizeValidation([a, b]);
+
+    expect(summary.oiChangeCall).toBeUndefined();
+    expect(summary.rangeExpansion).toBeUndefined();
+    expect(summary.sessionVolatilityPoints).toBeUndefined();
+    // Every pre-existing field must still compute exactly as before.
+    expect(summary.meanAbsoluteError).toBeDefined();
+  });
+});
+
 describe("partitionSnapshotsByMarket / summarizeValidationByMarket (Phase 6)", () => {
   // NIFTY trades in the ~24,000s; GOLD (MCX) trades in the ~72,000s (per 10g)
   // — deliberately far-apart magnitudes so a market-mixing bug (e.g. a

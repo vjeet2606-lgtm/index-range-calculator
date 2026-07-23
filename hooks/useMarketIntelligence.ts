@@ -15,6 +15,15 @@ import { generateLiveExplanation } from "@/lib/analytics/liveExplanation";
 import type { MarketDNA } from "@/lib/analytics/types";
 import { MARKET_STATUS_LABEL } from "@/lib/marketSession/displayLabels";
 import { createSnapshot } from "@/lib/snapshot/snapshotEngine";
+import { normalizeOptionChain } from "@/lib/marketData/normalize";
+import { computeOhlcIntelligence } from "@/lib/marketData/ohlcIntelligence";
+import { computeVolumeIntelligence } from "@/lib/marketData/volumeIntelligence";
+import { computeOiIntelligence } from "@/lib/marketData/oiIntelligence";
+import { computeOiChangeIntelligence } from "@/lib/marketData/oiChangeIntelligence";
+import { computeMaxPainIntelligence } from "@/lib/marketData/maxPainIntelligence";
+import { computeIvIntelligence } from "@/lib/marketData/ivIntelligence";
+import { computeSessionStatistics } from "@/lib/marketData/sessionStatistics";
+import type { MarketDataIntelligence } from "@/lib/marketData/types";
 
 const DEBUG = process.env.NODE_ENV !== "production";
 function pipelineLog(...args: unknown[]): void {
@@ -27,14 +36,15 @@ function findLeg(legs: PremiumBreakdown[], strike: number | undefined): PremiumB
 }
 
 /**
- * Phase 3 — Market Intelligence Engine. The one place all seven analytics
- * modules (lib/analytics/**) get invoked and combined into a Market DNA
- * object, mirroring how useCalculationEngine.ts is the sole caller of
- * runCalculationEngine() and useSessionLock.ts is the sole writer of
- * lockedSession. This hook only ADAPTS already-computed store state
- * (result, lockedSession, liveExtras) into each engine's minimal input
- * shape — it never computes a price, Greek, or IV itself, and never
- * triggers its own network request. Every module runs from the same
+ * Phase 3 — Market Intelligence Engine (lib/analytics/**), extended in
+ * Phase 7 with Market Data Intelligence (lib/marketData/**). The one place
+ * every analytics/market-data module gets invoked and combined into
+ * MarketDNA + MarketDataIntelligence, mirroring how useCalculationEngine.ts
+ * is the sole caller of runCalculationEngine() and useSessionLock.ts is the
+ * sole writer of lockedSession. This hook only ADAPTS already-computed
+ * store state (result, lockedSession, liveExtras) into each engine's
+ * minimal input shape — it never computes a price, Greek, or IV itself, and
+ * never triggers its own network request. Every module runs from the same
  * already-fetched `result`.
  */
 export function useMarketIntelligence() {
@@ -182,6 +192,68 @@ export function useMarketIntelligence() {
     pipelineLog("computed", marketDNA);
     setMarketDNA(marketDNA);
 
+    // Phase 7 — Market Data Intelligence. Reads store.snapshots directly via
+    // getState() (NOT a subscribed selector) specifically so it isn't in
+    // this effect's dependency array — this same effect appends to
+    // snapshots below, so subscribing to it here would re-fire this effect
+    // on its own append and loop. A one-off read of "whatever this session
+    // has captured so far" is exactly what OHLC/IV-trend/OI-change need.
+    const priorSnapshots = useMarketStore.getState().snapshots;
+    const normalizedChain = liveExtras?.fullChain ? normalizeOptionChain(liveExtras.fullChain, atmStrike) : undefined;
+
+    const spotObservations = [
+      ...priorSnapshots.map((s) => ({ timestamp: s.timestamp, spot: s.spot })),
+      { timestamp: resolvedAt, spot: result.underlying.currentSpot },
+    ];
+    const ohlc = computeOhlcIntelligence(spotObservations);
+
+    const volume = computeVolumeIntelligence();
+
+    const oi = computeOiIntelligence({
+      atmCallOI: liveExtras?.openInterest?.ce,
+      atmPutOI: liveExtras?.openInterest?.pe,
+      chain: normalizedChain,
+    });
+
+    const previousOiSnapshot = [...priorSnapshots].reverse().find((s) => s.marketData?.oi !== undefined);
+    const oiChange = computeOiChangeIntelligence(
+      { aggregatedCallOI: oi.aggregatedCallOI, aggregatedPutOI: oi.aggregatedPutOI },
+      previousOiSnapshot
+        ? {
+            timestamp: previousOiSnapshot.timestamp,
+            aggregatedCallOI: previousOiSnapshot.marketData!.oi.aggregatedCallOI,
+            aggregatedPutOI: previousOiSnapshot.marketData!.oi.aggregatedPutOI,
+          }
+        : undefined,
+    );
+
+    const maxPain = computeMaxPainIntelligence(normalizedChain, result.underlying.currentSpot);
+
+    const ivObservations = [
+      ...priorSnapshots.filter((s) => s.atmIV !== undefined).map((s) => ({ timestamp: s.timestamp, iv: s.atmIV! })),
+      ...(currentBlendedIV !== undefined ? [{ timestamp: resolvedAt, iv: currentBlendedIV }] : []),
+    ];
+    const iv = computeIvIntelligence(currentBlendedIV, ivObservations);
+
+    const sessionStatistics = computeSessionStatistics({
+      sessionProgressPercent: marketSession?.sessionProgressPercent,
+      tradingMinutesRemaining: marketSession?.tradingMinutesRemaining,
+      snapshotsThisSession: priorSnapshots.length + 1,
+      ohlc,
+    });
+
+    const marketData: MarketDataIntelligence = {
+      resolvedAt,
+      optionChain: normalizedChain,
+      ohlc,
+      volume,
+      oi,
+      oiChange,
+      maxPain,
+      iv,
+      sessionStatistics,
+    };
+
     // Phase 5, Workstream 2 — Session Snapshot Engine. Reuses the MarketDNA
     // just assembled above verbatim (zero new computation) plus already-
     // available store state to build a frozen, timestamped record. Captured
@@ -206,6 +278,7 @@ export function useMarketIntelligence() {
       sessionProgressPercent: marketSession?.sessionProgressPercent,
       timeHorizonKind: liveExtras?.timeHorizon?.kind,
       timeHorizonLabel: liveExtras?.timeHorizon?.label,
+      marketData,
     });
     addSnapshot(snapshot);
   }, [result, lockedSession, dataSource, liveExtras, marketId, symbol, setMarketDNA, addSnapshot]);

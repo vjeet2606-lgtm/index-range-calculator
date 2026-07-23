@@ -5,7 +5,9 @@ export type StructureIntelligenceInput = {
   atmStrike: number | undefined;
 };
 
-function moneyness(optionType: "CE" | "PE", strike: number, atmStrike: number): Moneyness {
+/** Exported (Phase 7) so lib/marketData/optionChainIntelligence.ts can reuse
+ *  the exact same ITM/OTM/ATM classification instead of reimplementing it. */
+export function moneyness(optionType: "CE" | "PE", strike: number, atmStrike: number): Moneyness {
   if (strike === atmStrike) return "ATM";
   const strikeIsBelowAtm = strike < atmStrike;
   if (optionType === "CE") return strikeIsBelowAtm ? "ITM" : "OTM";

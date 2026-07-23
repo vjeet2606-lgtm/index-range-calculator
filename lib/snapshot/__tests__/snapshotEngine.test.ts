@@ -135,6 +135,59 @@ describe("createSnapshot", () => {
   });
 });
 
+describe("createSnapshot — Phase 7 backward compatibility (marketData is optional)", () => {
+  it("defaults marketData to undefined when omitted — every pre-Phase-7 call site keeps working unchanged", () => {
+    const snapshot = createSnapshot({
+      timestamp: 1000,
+      market: "NSE",
+      instrument: "NIFTY",
+      underlyingLabel: "NIFTY 50",
+      spot: 24800,
+      marketDNA: fakeMarketDNA(),
+      lockedBoundaries: null,
+      marketStatus: undefined,
+      sessionProgressPercent: undefined,
+      timeHorizonKind: undefined,
+      timeHorizonLabel: undefined,
+      // marketData intentionally omitted
+    });
+    expect(snapshot.marketData).toBeUndefined();
+  });
+
+  it("includes and deep-freezes marketData when provided", () => {
+    const marketData = {
+      resolvedAt: 1000,
+      optionChain: undefined,
+      ohlc: { sessionOpen: 24800, sessionHigh: 24850, sessionLow: 24780, sessionClose: 24820, previousClose: undefined, gap: undefined, range: 70, body: 20, upperWick: 30, lowerWick: 20, realizedVolatilityPoints: 12, sampleCount: 3 },
+      volume: { currentVolume: undefined, averageVolume: undefined, relativeVolume: undefined, volumeExpansion: undefined, volumeContraction: undefined, intradayVolumeProgressPercent: undefined },
+      oi: { atmCallOI: 60000, atmPutOI: 58000, aggregatedCallOI: 150000, aggregatedPutOI: 138000, aggregatedPutCallOIRatio: 0.92, strikesWithOiData: 5 },
+      oiChange: { intraSessionCallOIChange: undefined, intraSessionPutOIChange: undefined, intraSessionCallOIChangePercent: undefined, intraSessionPutOIChangePercent: undefined, compareBaselineTimestamp: undefined },
+      maxPain: { maxPainStrike: 24800, distanceFromSpot: 0, distanceFromSpotPercent: 0, strikesEvaluated: 5, historicalMaxPain: undefined },
+      iv: { currentIV: 14.2, ivTrend: undefined, ivExpansion: undefined, ivCompression: undefined, historicalIV: undefined, ivRank: undefined, ivPercentile: undefined },
+      sessionStatistics: { sessionProgressPercent: 40, tradingMinutesRemaining: 200, snapshotsThisSession: 3, ohlc: { sessionOpen: 24800, sessionHigh: 24850, sessionLow: 24780, sessionClose: 24820, previousClose: undefined, gap: undefined, range: 70, body: 20, upperWick: 30, lowerWick: 20, realizedVolatilityPoints: 12, sampleCount: 3 } },
+    };
+
+    const snapshot = createSnapshot({
+      timestamp: 1000,
+      market: "NSE",
+      instrument: "NIFTY",
+      underlyingLabel: "NIFTY 50",
+      spot: 24800,
+      marketDNA: fakeMarketDNA(),
+      lockedBoundaries: null,
+      marketStatus: undefined,
+      sessionProgressPercent: undefined,
+      timeHorizonKind: undefined,
+      timeHorizonLabel: undefined,
+      marketData,
+    });
+
+    expect(snapshot.marketData?.oi.aggregatedCallOI).toBe(150000);
+    expect(Object.isFrozen(snapshot.marketData)).toBe(true);
+    expect(Object.isFrozen(snapshot.marketData?.ohlc)).toBe(true);
+  });
+});
+
 describe("createSnapshot — cross-market compatibility (Phase 6)", () => {
   it("works identically for MCX as for NSE — same fields populated, just a different market/instrument", () => {
     const snapshot = createSnapshot({

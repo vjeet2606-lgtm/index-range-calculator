@@ -167,6 +167,7 @@ export function useLiveRange() {
             impliedVolatility: data.impliedVolatility,
             openInterest: data.openInterest,
             strikeWindow: data.strikeWindow,
+            fullChain: data.fullChain,
           },
         );
       } catch (err) {

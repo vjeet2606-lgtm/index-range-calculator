@@ -9,6 +9,7 @@ import type {
   StructureIntelligenceReport,
   VolatilityIntelligenceReport,
 } from "@/lib/analytics/types";
+import type { MarketDataIntelligence } from "@/lib/marketData/types";
 
 /**
  * Phase 5, Workstream 2 — Session Snapshot Engine.
@@ -62,6 +63,11 @@ export type SessionSnapshot = {
   sessionProgressPercent: number | undefined;
   timeHorizonKind: TimeHorizonKind | undefined;
   timeHorizonLabel: string | undefined;
+  /** Phase 7 — Market Data Intelligence (OHLC/Volume/OI/OI Change/Max Pain/
+   *  IV/Session Statistics). Optional and backward compatible: every
+   *  pre-Phase-7 snapshot and every existing createSnapshot() call site
+   *  that doesn't pass it keeps working unchanged, reading undefined here. */
+  marketData: MarketDataIntelligence | undefined;
 };
 
 /**

@@ -60,4 +60,23 @@ export type ValidationSummary = {
   thetaDecayProgression: number | undefined;
   sessionProgressStart: number | undefined;
   sessionProgressEnd: number | undefined;
+  /** Phase 7 — additive fields sourced from each snapshot's optional
+   *  marketData (lib/marketData/**). IV Change is already covered by
+   *  ivDriftPoints above (not duplicated here). last.aggregatedOI -
+   *  first.aggregatedOI, undefined when either endpoint lacks marketData.oi
+   *  (e.g. manual-mode snapshots, or snapshots captured before Phase 7). */
+  oiChangeCall: number | undefined;
+  oiChangePut: number | undefined;
+  /** Always undefined — no data source reports Volume (see
+   *  lib/marketData/volumeIntelligence.ts's doc comment). Present so the
+   *  shape is ready, never fabricated. */
+  volumeChange: number | undefined;
+  /** last.ohlc.range - first.ohlc.range — how much this session's observed
+   *  high-low range widened between the two sampled checkpoints. */
+  rangeExpansion: number | undefined;
+  /** The last checkpoint's realized-volatility-so-far figure
+   *  (marketData.ohlc.realizedVolatilityPoints) — a snapshot-in-time read
+   *  of the session's accumulated realized volatility, not a separately
+   *  computed statistic. */
+  sessionVolatilityPoints: number | undefined;
 };

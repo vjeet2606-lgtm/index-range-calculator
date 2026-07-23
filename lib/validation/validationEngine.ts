@@ -125,6 +125,20 @@ export function summarizeValidation(snapshotsInput: SessionSnapshot[]): Validati
     thetaDecayProgression,
     sessionProgressStart: first?.sessionProgressPercent,
     sessionProgressEnd: last?.sessionProgressPercent,
+    oiChangeCall:
+      first?.marketData?.oi.aggregatedCallOI !== undefined && last?.marketData?.oi.aggregatedCallOI !== undefined
+        ? last.marketData.oi.aggregatedCallOI - first.marketData.oi.aggregatedCallOI
+        : undefined,
+    oiChangePut:
+      first?.marketData?.oi.aggregatedPutOI !== undefined && last?.marketData?.oi.aggregatedPutOI !== undefined
+        ? last.marketData.oi.aggregatedPutOI - first.marketData.oi.aggregatedPutOI
+        : undefined,
+    volumeChange: undefined, // no data source — see ValidationSummary.volumeChange's doc comment
+    rangeExpansion:
+      first?.marketData?.ohlc.range !== undefined && last?.marketData?.ohlc.range !== undefined
+        ? last.marketData.ohlc.range - first.marketData.ohlc.range
+        : undefined,
+    sessionVolatilityPoints: last?.marketData?.ohlc.realizedVolatilityPoints,
   };
 }
 
