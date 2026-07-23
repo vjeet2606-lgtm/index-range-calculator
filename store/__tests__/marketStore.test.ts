@@ -38,12 +38,39 @@ describe("marketStore — setMarketId", () => {
     expect(state.manualInputs).toEqual({ spot: "", cePremium: "", pePremium: "" });
     expect(state.result).toBeNull();
     expect(state.lockedSession).toBeNull();
-    expect(state.horizonMode).toBe("expiry"); // Intraday is NSE-only — must not leak across a market switch
+    expect(state.horizonMode).toBe("expiry"); // horizonMode always resets on a market switch, even MCX -> MCX-supported Intraday
   });
 
   it("changes the default instrument symbol to the new market's default", () => {
     useMarketStore.getState().setMarketId("MCX");
     expect(useMarketStore.getState().symbol).not.toBe("");
+  });
+});
+
+describe("marketStore — cross-market switching (Phase 6)", () => {
+  it("clears snapshots on a market switch — a GOLD snapshot must never linger after switching to NSE", () => {
+    useMarketStore.setState({ snapshots: [{ market: "MCX" } as never] });
+    useMarketStore.getState().setMarketId("NSE");
+    expect(useMarketStore.getState().snapshots).toEqual([]);
+  });
+
+  it("round-trips NSE -> MCX -> NSE without leaking state from the intermediate market", () => {
+    useMarketStore.getState().setManualInput("spot", "24800");
+    useMarketStore.getState().setMarketId("MCX");
+    useMarketStore.getState().setManualInput("spot", "72000");
+
+    useMarketStore.getState().setMarketId("NSE");
+
+    const state = useMarketStore.getState();
+    expect(state.marketId).toBe("NSE");
+    expect(state.manualInputs.spot).toBe("");
+    expect(state.symbol).toBe("NIFTY");
+  });
+
+  it("MCX is a selectable marketId with its own default instrument symbol", () => {
+    useMarketStore.getState().setMarketId("MCX");
+    expect(useMarketStore.getState().marketId).toBe("MCX");
+    expect(useMarketStore.getState().symbol).toBe("GOLD");
   });
 });
 

@@ -12,6 +12,8 @@ export const CRYPTO_MARKET: MarketConfig = {
   timezone: "UTC",
   currency: "USD",
   status: "disabled",
+  tradingDays: [],
+  supportedHorizons: [],
   supportedInstruments: [
     { symbol: "BTC", label: "Bitcoin", category: "crypto" },
     { symbol: "ETH", label: "Ethereum", category: "crypto" },

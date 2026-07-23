@@ -8,5 +8,7 @@ export const GLOBAL_MARKET: MarketConfig = {
   timezone: "UTC",
   currency: "USD",
   status: "architecture-only",
+  tradingDays: [],
+  supportedHorizons: [],
   supportedInstruments: [],
 };

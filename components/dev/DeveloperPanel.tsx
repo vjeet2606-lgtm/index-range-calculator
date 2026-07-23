@@ -8,6 +8,8 @@ import { summarizeValidation } from "@/lib/validation/validationEngine";
 import { compareSnapshots } from "@/lib/snapshot/snapshotEngine";
 import { CODE_HEALTH_SUMMARY, COVERAGE_SUMMARY, BENCHMARK_SUMMARY, CAPTURED_AT } from "@/lib/devReports/staticReports";
 import { useMarketStore } from "@/store/marketStore";
+import { getMarket } from "@/lib/markets/registry";
+import { selectPricingModel } from "@/lib/quant/core/modelSelector";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -42,6 +44,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 export default function DeveloperPanel() {
   const [isOpen, setIsOpen] = useState(false);
   const snapshots = useMarketStore((state) => state.snapshots);
+  const marketId = useMarketStore((state) => state.marketId);
 
   if (process.env.NODE_ENV === "production") return null;
 
@@ -49,6 +52,7 @@ export default function DeveloperPanel() {
   const latest = snapshots[snapshots.length - 1];
   const previous = snapshots[snapshots.length - 2];
   const comparison = latest && previous ? compareSnapshots(latest, previous) : null;
+  const marketProfile = getMarket(marketId);
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex max-w-sm flex-col items-end gap-2">
@@ -61,6 +65,18 @@ export default function DeveloperPanel() {
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
             Development mode only — never rendered in production
           </p>
+
+          <Section title="Active Market Profile">
+            <Row label="Market" value={`${marketProfile.name} (${marketProfile.id})`} />
+            <Row label="Exchange" value={marketProfile.exchange} />
+            <Row label="Timezone" value={marketProfile.timezone} />
+            <Row
+              label="Trading hours"
+              value={marketProfile.tradingHours ? `${marketProfile.tradingHours.open}–${marketProfile.tradingHours.close}` : "—"}
+            />
+            <Row label="Supported horizons" value={marketProfile.supportedHorizons.join(", ") || "—"} />
+            <Row label="Pricing model" value={selectPricingModel(marketProfile.id).name} />
+          </Section>
 
           <Section title="Live Quantitative Validation">
             <Row label="Checkpoints recorded" value={validation.checkpointCount} />

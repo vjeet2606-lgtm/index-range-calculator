@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useMarketStore } from "@/store/marketStore";
 import type { LiveRangeData } from "@/lib/dhan/types";
 import { resolveTimeHorizon } from "@/lib/timeHorizon/timeHorizonProvider";
-import { getMarketSession } from "@/lib/marketSession/marketSessionService";
+import { resolveSessionProfile } from "@/lib/marketSession/marketSessionService";
 import { getMarket } from "@/lib/markets/registry";
 
 const DEBUG = process.env.NODE_ENV !== "production";
@@ -123,28 +123,32 @@ export function useLiveRange() {
         }
 
         const data = json.data as LiveRangeData;
-        // Market Session Service: NSE's current trading-session state — a
-        // fact about the exchange, resolved regardless of which horizon the
-        // user has selected, since "is the market open right now" is useful
-        // to show either way. Undefined for MCX/other markets (no
-        // tradingHours configured there, and Intraday is an NSE-only concept).
-        const marketSession =
-          marketId === "NSE" && getMarket("NSE").tradingHours ? getMarketSession(getMarket("NSE").tradingHours!) : undefined;
-        // Time Horizon Provider: NSE + Intraday mode measures Current Time ->
-        // today's market close, fed by the session snapshot above. Expiry
-        // mode anchors to the exchange's actual close time on the expiry
-        // date when it's known (NSE: 15:30 IST, the same official cutoff
-        // Intraday and the Market Session Service already use) — never a
-        // bare UTC-midnight reading of Dhan's date-only expiry string
-        // (Phase 4 bug fix; see resolveExpiryHorizon's doc comment). MCX has
-        // no single configured close time across its commodities, so it
-        // falls back to the original, unchanged generic date parsing.
-        const useIntraday = marketId === "NSE" && horizonMode === "intraday";
+        const marketProfile = getMarket(marketId);
+        // Market Session Service: the current market's trading-session state
+        // (Phase 6: resolved from its MarketProfile, not a hardcoded
+        // `marketId === "NSE"` check) — a fact about the exchange, resolved
+        // regardless of which horizon the user has selected, since "is the
+        // market open right now" is useful to show either way. Undefined for
+        // any market with no configured tradingHours (CURRENCY/GLOBAL/CRYPTO
+        // today).
+        const marketSession = resolveSessionProfile(marketProfile);
+        // Time Horizon Provider: Intraday mode measures Current Time ->
+        // today's market close, fed by the session snapshot above — offered
+        // for any market whose MarketProfile lists "intraday" in
+        // supportedHorizons (NSE and MCX both do; Phase 6 extended this from
+        // the previous NSE-only gate). Expiry mode anchors to the exchange's
+        // actual close time on the expiry date when it's known (the same
+        // official cutoff Intraday and the Market Session Service already
+        // use) — never a bare UTC-midnight reading of Dhan's date-only
+        // expiry string (Phase 4 bug fix; see resolveExpiryHorizon's doc
+        // comment). A market with no configured tradingHours.close falls
+        // back to the original, unchanged generic date parsing.
+        const useIntraday = marketProfile.supportedHorizons.includes("intraday") && horizonMode === "intraday";
         const timeHorizon = useIntraday
           ? resolveTimeHorizon("intraday", { marketSession })
           : resolveTimeHorizon("expiry", {
               expiryDateLike: data.expiry,
-              expiryCloseTime: marketId === "NSE" ? getMarket("NSE").tradingHours?.close : undefined,
+              expiryCloseTime: marketProfile.tradingHours?.close,
             });
         const timeToExpiryDays = timeHorizon?.timeToExpiryDays ?? 0;
         pipelineLog("Calculator inputs filled from live data", { symbol, data, horizonMode, marketSession, timeHorizon });

@@ -1,4 +1,5 @@
 import type { MarketSessionSnapshot, MarketStatus, SessionCalendarOverride } from "./types";
+import type { MarketConfig } from "@/lib/markets/types";
 
 const MS_PER_MINUTE = 60_000;
 /** NSE/BSE trade in IST (UTC+5:30) year-round — India observes no DST, so a
@@ -98,4 +99,19 @@ export function getMarketSession(
   const sessionProgressPercent = totalSessionMs > 0 ? (elapsedMs / totalSessionMs) * 100 : 0;
 
   return { now, marketOpensAt, marketClosesAt, status, tradingMinutesRemaining, sessionProgressPercent };
+}
+
+/**
+ * Phase 6: resolves a market's session directly from its MarketProfile
+ * (lib/markets/**), instead of every call site hardcoding
+ * `marketId === "NSE" && getMarket("NSE").tradingHours`. Returns undefined
+ * for a market with no configured `tradingHours` (CURRENCY/GLOBAL/CRYPTO
+ * today) — the same "no session to resolve" outcome those hardcoded checks
+ * already produced, just derived from the profile instead of a special-cased
+ * marketId string. getMarketSession() itself is unchanged; this is a thin,
+ * additive wrapper so its existing direct callers/tests are unaffected.
+ */
+export function resolveSessionProfile(profile: MarketConfig, now: number = Date.now()): MarketSessionSnapshot | undefined {
+  if (!profile.tradingHours) return undefined;
+  return getMarketSession(profile.tradingHours, now, profile.calendarOverrides ?? []);
 }

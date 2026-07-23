@@ -8,6 +8,8 @@ export const CURRENCY_MARKET: MarketConfig = {
   timezone: "Asia/Kolkata",
   currency: "INR",
   status: "disabled",
+  tradingDays: [],
+  supportedHorizons: [],
   supportedInstruments: [
     { symbol: "USDINR", label: "USD/INR", category: "currency-pair" },
     { symbol: "EURINR", label: "EUR/INR", category: "currency-pair" },

@@ -1,4 +1,5 @@
 import type { SessionSnapshot } from "@/lib/snapshot/types";
+import type { MarketId } from "@/lib/markets/types";
 import { VALIDATION_MILESTONES, type ValidationMilestone, type RealizedVsImpliedMoveSample, type ValidationSummary } from "./types";
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -125,4 +126,43 @@ export function summarizeValidation(snapshotsInput: SessionSnapshot[]): Validati
     sessionProgressStart: first?.sessionProgressPercent,
     sessionProgressEnd: last?.sessionProgressPercent,
   };
+}
+
+/**
+ * Phase 6: groups snapshots by their `market` field. A NIFTY spot move and a
+ * GOLD spot move are not comparable numbers (different scales, different
+ * underlyings, different pricing models — see selectPricingModel) — mixing
+ * markets into one summarizeValidation() call would silently average/drift-
+ * compare across them, which is exactly what "Do NOT compare different
+ * markets mathematically" rules out. Grouping first, then summarizing each
+ * group independently, is how that requirement is enforced in code rather
+ * than left as a convention callers have to remember.
+ */
+export function partitionSnapshotsByMarket(snapshots: SessionSnapshot[]): Partial<Record<MarketId, SessionSnapshot[]>> {
+  const groups: Partial<Record<MarketId, SessionSnapshot[]>> = {};
+  for (const snapshot of snapshots) {
+    const group = groups[snapshot.market];
+    if (group) group.push(snapshot);
+    else groups[snapshot.market] = [snapshot];
+  }
+  return groups;
+}
+
+/**
+ * Per-market ValidationSummary map — the market-safe entry point for any
+ * caller that might ever see a snapshot array spanning more than one market
+ * (summarizeValidation() itself is unchanged and remains correct for the
+ * common single-market case, e.g. store.snapshots, which is already reset on
+ * every market switch). Each market's summary is computed by
+ * summarizeValidation() over ONLY that market's own snapshots — no formula
+ * or statistic here differs from the single-market path; this is purely a
+ * grouping wrapper, not a second implementation.
+ */
+export function summarizeValidationByMarket(snapshots: SessionSnapshot[]): Partial<Record<MarketId, ValidationSummary>> {
+  const groups = partitionSnapshotsByMarket(snapshots);
+  const result: Partial<Record<MarketId, ValidationSummary>> = {};
+  for (const marketId of Object.keys(groups) as MarketId[]) {
+    result[marketId] = summarizeValidation(groups[marketId]!);
+  }
+  return result;
 }

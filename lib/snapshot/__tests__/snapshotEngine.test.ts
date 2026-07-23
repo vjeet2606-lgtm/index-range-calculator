@@ -135,6 +135,30 @@ describe("createSnapshot", () => {
   });
 });
 
+describe("createSnapshot — cross-market compatibility (Phase 6)", () => {
+  it("works identically for MCX as for NSE — same fields populated, just a different market/instrument", () => {
+    const snapshot = createSnapshot({
+      timestamp: 1000,
+      market: "MCX",
+      instrument: "GOLD",
+      underlyingLabel: "Gold",
+      spot: 72000,
+      marketDNA: fakeMarketDNA(),
+      lockedBoundaries: { expectedLowerBoundary: 71500, expectedUpperBoundary: 72700, rangeWidth: 1200 },
+      marketStatus: "open",
+      sessionProgressPercent: 40,
+      timeHorizonKind: "intraday",
+      timeHorizonLabel: "Intraday — 23:30 IST",
+    });
+
+    expect(snapshot.market).toBe("MCX");
+    expect(snapshot.instrument).toBe("GOLD");
+    expect(snapshot.spot).toBe(72000);
+    expect(snapshot.rangeWidth).toBe(1200);
+    expect(Object.isFrozen(snapshot)).toBe(true);
+  });
+});
+
 describe("compareSnapshots", () => {
   const earlier = createSnapshot({
     timestamp: 1000,

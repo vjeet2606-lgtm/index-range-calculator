@@ -40,9 +40,11 @@ export type LiveExtras = {
    *  ever reads timeToExpiryDays; this field never influences a calculation,
    *  it just lets the UI say honestly which horizon produced it. */
   timeHorizon?: TimeHorizon;
-  /** NSE's current trading-session state (lib/marketSession/**) — resolved
-   *  on every NSE fetch regardless of horizonMode, since "is the market
-   *  open right now" is a fact about the exchange, not about which pricing
+  /** The active market's current trading-session state (lib/marketSession/**,
+   *  resolved via resolveSessionProfile from its MarketProfile) — resolved
+   *  on every live fetch for any market with configured tradingHours (NSE
+   *  and MCX today), regardless of horizonMode, since "is the market open
+   *  right now" is a fact about the exchange, not about which pricing
    *  horizon the user happens to have selected. */
   marketSession?: MarketSessionSnapshot;
 };
@@ -79,12 +81,13 @@ type MarketState = {
   marketId: MarketId;
   symbol: string;
   manualInputs: ManualInputs;
-  /** Intraday Traders vs. Expiry/Positional Traders (NSE only — see
-   *  lib/timeHorizon/**). Defaults to "expiry" so every existing user's
-   *  calculation is byte-identical to before this mode existed; the toggle
-   *  only renders for marketId === "NSE" and useLiveRange.ts only branches
-   *  on this when marketId === "NSE", so it's inert everywhere else
-   *  regardless of what this happens to hold. */
+  /** Intraday Traders vs. Expiry/Positional Traders — see lib/timeHorizon/**.
+   *  Defaults to "expiry" so every existing user's calculation is
+   *  byte-identical to before this mode existed. Only markets whose
+   *  MarketProfile lists "intraday" in supportedHorizons (NSE and MCX
+   *  today — see lib/markets/registry.ts) render the toggle or act on this
+   *  value; it's inert for every other market regardless of what this
+   *  happens to hold. */
   horizonMode: TimeHorizonKind;
   /** Greeks/IV/OI context behind the current manualInputs, when they came from a
    *  live fetch. Cleared the instant the user hand-edits any field — once edited,
@@ -223,9 +226,13 @@ export const useMarketStore = create<MarketState>()(
           marketId,
           symbol: MARKETS[marketId].defaultInstrumentSymbol ?? "",
           manualInputs: EMPTY_MANUAL_INPUTS,
-          // Intraday is an NSE-only concept — leaving it selected while
-          // switching away (and eventually back) would leave a toggle state
-          // the new market's UI never rendered a control for.
+          // Not every market supports Intraday (see MarketProfile.supportedHorizons)
+          // — leaving it selected while switching to one that doesn't would
+          // leave a toggle state the new market's UI never rendered a
+          // control for. Reset unconditionally on every market switch for a
+          // consistent, predictable UX even between two Intraday-supporting
+          // markets (e.g. NSE -> MCX): each market's session close is a
+          // different instant, so "Intraday" shouldn't silently carry over.
           horizonMode: "expiry",
           liveExtras: null,
           dataSource: "manual",

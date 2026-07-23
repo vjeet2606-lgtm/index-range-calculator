@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { summarizeValidation, nearestMilestone } from "../validationEngine";
+import { summarizeValidation, nearestMilestone, partitionSnapshotsByMarket, summarizeValidationByMarket } from "../validationEngine";
 import { createSnapshot } from "@/lib/snapshot/snapshotEngine";
 import type { MarketDNA } from "@/lib/analytics/types";
+import type { MarketId } from "@/lib/markets/types";
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
@@ -43,12 +44,13 @@ function snapshot(
   sessionProgressPercent: number,
   atmNetThetaPerDay = -21,
   rangeWidth = 460,
+  market: MarketId = "NSE",
 ) {
   return createSnapshot({
     timestamp,
-    market: "NSE",
-    instrument: "NIFTY",
-    underlyingLabel: "NIFTY 50",
+    market,
+    instrument: market === "MCX" ? "GOLD" : "NIFTY",
+    underlyingLabel: market === "MCX" ? "Gold" : "NIFTY 50",
     spot,
     marketDNA: fakeMarketDNA({
       volatility: { ...fakeMarketDNA().volatility, currentBlendedIV: atmIV },
@@ -172,5 +174,48 @@ describe("summarizeValidation — known-input arithmetic verification", () => {
       if (key === "samples" || key === "nearestMilestones") continue;
       expect(["number", "undefined"]).toContain(typeof value);
     }
+  });
+});
+
+describe("partitionSnapshotsByMarket / summarizeValidationByMarket (Phase 6)", () => {
+  // NIFTY trades in the ~24,000s; GOLD (MCX) trades in the ~72,000s (per 10g)
+  // — deliberately far-apart magnitudes so a market-mixing bug (e.g. a
+  // maximumDrift computed across both) would be impossible to miss.
+  const nifty1 = snapshot(istInstant(2026, 7, 23, 9, 20), 24800, 200, 370, 14.0, 0, -21, 460, "NSE");
+  const nifty2 = snapshot(istInstant(2026, 7, 23, 10, 0), 24830, 180, 330, 14.2, 10.8, -21, 460, "NSE");
+  const gold1 = snapshot(istInstant(2026, 7, 23, 9, 30), 72000, 500, 800, 12.0, 0, -30, 900, "MCX");
+  const gold2 = snapshot(istInstant(2026, 7, 23, 11, 0), 72400, 420, 710, 12.3, 11.25, -30, 900, "MCX");
+
+  it("partitions a mixed-market snapshot array into one group per market", () => {
+    const groups = partitionSnapshotsByMarket([nifty1, gold1, nifty2, gold2]);
+    expect(groups.NSE).toHaveLength(2);
+    expect(groups.MCX).toHaveLength(2);
+    expect(groups.NSE!.every((s) => s.market === "NSE")).toBe(true);
+    expect(groups.MCX!.every((s) => s.market === "MCX")).toBe(true);
+  });
+
+  it("summarizes each market independently — never averages a NIFTY move with a GOLD move", () => {
+    const byMarket = summarizeValidationByMarket([nifty1, gold1, nifty2, gold2]);
+
+    const nseOnly = summarizeValidation([nifty1, nifty2]);
+    const mcxOnly = summarizeValidation([gold1, gold2]);
+
+    expect(byMarket.NSE).toEqual(nseOnly);
+    expect(byMarket.MCX).toEqual(mcxOnly);
+    // The two markets' spot scales are ~3x apart — if they were ever mixed
+    // into one maximumDrift, it would swamp the real per-market value.
+    expect(byMarket.NSE!.maximumDrift).toBe(30); // 24830 - 24800
+    expect(byMarket.MCX!.maximumDrift).toBe(400); // 72400 - 72000
+  });
+
+  it("a single-market input produces exactly one group, matching summarizeValidation directly", () => {
+    const byMarket = summarizeValidationByMarket([nifty1, nifty2]);
+    expect(Object.keys(byMarket)).toEqual(["NSE"]);
+    expect(byMarket.NSE).toEqual(summarizeValidation([nifty1, nifty2]));
+  });
+
+  it("an empty array produces no groups", () => {
+    expect(partitionSnapshotsByMarket([])).toEqual({});
+    expect(summarizeValidationByMarket([])).toEqual({});
   });
 });

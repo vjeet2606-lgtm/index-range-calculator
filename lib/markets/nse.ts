@@ -13,6 +13,10 @@ export const NSE_MARKET: MarketConfig = {
   currency: "INR",
   status: "enabled",
   tradingHours: { open: "09:15", close: "15:30" },
+  tradingDays: [1, 2, 3, 4, 5],
+  supportedHorizons: ["intraday", "expiry"],
+  sessionBreaks: [],
+  calendarOverrides: [],
   expiryRule: "Weekly (index F&O, varies by symbol) / monthly (stock F&O)",
   apiProvider: "dhan",
   supportedInstruments: [

@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
-import { getMarketSession, formatIstTime } from "../marketSessionService";
+import { getMarketSession, formatIstTime, resolveSessionProfile } from "../marketSessionService";
+import { NSE_MARKET } from "@/lib/markets/nse";
+import { MCX_MARKET } from "@/lib/markets/mcx";
+import { CURRENCY_MARKET } from "@/lib/markets/currency";
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const TRADING_HOURS = { open: "09:15", close: "15:30" };
@@ -134,6 +137,31 @@ describe("getMarketSession — invariants (property-based)", () => {
       }),
       { numRuns: 300 },
     );
+  });
+});
+
+describe("resolveSessionProfile (Phase 6)", () => {
+  it("resolves NSE's session from its MarketProfile identically to calling getMarketSession directly", () => {
+    const now = istInstant(2026, 7, 21, 12, 0);
+    const viaProfile = resolveSessionProfile(NSE_MARKET, now);
+    const direct = getMarketSession(NSE_MARKET.tradingHours!, now);
+
+    expect(viaProfile).toEqual(direct);
+  });
+
+  it("resolves MCX's own (later) session close, not NSE's", () => {
+    const now = istInstant(2026, 7, 21, 18, 0);
+    const nseSession = resolveSessionProfile(NSE_MARKET, now);
+    const mcxSession = resolveSessionProfile(MCX_MARKET, now);
+
+    expect(nseSession!.status).toBe("post-market");
+    expect(mcxSession!.status).toBe("open");
+    expect(mcxSession!.marketOpensAt).toBe(istInstant(2026, 7, 21, 9, 0));
+    expect(mcxSession!.marketClosesAt).toBe(istInstant(2026, 7, 21, 23, 30));
+  });
+
+  it("returns undefined for a market with no configured tradingHours", () => {
+    expect(resolveSessionProfile(CURRENCY_MARKET, Date.now())).toBeUndefined();
   });
 });
 

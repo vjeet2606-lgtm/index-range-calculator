@@ -11,6 +11,15 @@ import type { MarketConfig } from "./types";
  * useCalculationEngine.ts), and MCX symbols behave the same way NSE Stock
  * Option symbols already do: the raw symbol is a perfectly good label when no
  * static entry exists.
+ *
+ * tradingHours (Phase 6): MCX's standard session is 09:00-23:30 IST,
+ * extending to 23:55 IST on the (roughly Mar-Nov) dates the US observes
+ * daylight saving, per MCX circulars — this app has no live DST calendar, so
+ * 23:30 (the non-DST/standard close) is used year-round. This is the same
+ * "no live calendar, document the gap rather than guess a fix" approach
+ * already used for NSE holidays (see calendarOverrides below) — the ~25
+ * minute understatement on DST dates is a known, documented limitation, not
+ * a silent one.
  */
 export const MCX_MARKET: MarketConfig = {
   id: "MCX",
@@ -19,6 +28,11 @@ export const MCX_MARKET: MarketConfig = {
   timezone: "Asia/Kolkata",
   currency: "INR",
   status: "enabled",
+  tradingHours: { open: "09:00", close: "23:30" },
+  tradingDays: [1, 2, 3, 4, 5],
+  supportedHorizons: ["intraday", "expiry"],
+  sessionBreaks: [],
+  calendarOverrides: [],
   expiryRule: "Monthly (commodity options) / weekly (MCXBULLDEX & MCXMETLDEX index options)",
   apiProvider: "dhan",
   supportedInstruments: [],

@@ -18,6 +18,7 @@ import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { useWizardStep } from "@/hooks/useWizardStep";
 import { useMarketStore } from "@/store/marketStore";
 import type { MarketId } from "@/lib/markets/types";
+import { getMarket } from "@/lib/markets/registry";
 import type { WizardStepId } from "@/lib/wizard/steps";
 
 const stepVariants = {
@@ -103,7 +104,7 @@ export default function WizardFlow() {
             <div className="flex flex-col gap-6">
               <h2 className="text-xl font-bold tracking-tight text-foreground">Calculation Dashboard</h2>
               {!isBrokerConnected && <NoBrokerConnected />}
-              {marketId === "NSE" && isBrokerConnected && <TimeHorizonToggle />}
+              {getMarket(marketId).supportedHorizons.includes("intraday") && isBrokerConnected && <TimeHorizonToggle />}
               <ManualInputForm />
               <ResultDashboard />
               <div className="flex justify-end">

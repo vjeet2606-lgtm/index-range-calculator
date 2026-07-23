@@ -145,6 +145,46 @@ describe("useLiveRange — successful response handling", () => {
   });
 });
 
+describe("useLiveRange — MCX Intraday (Phase 6 fix)", () => {
+  it("resolves an intraday horizon and a marketSession for MCX, mirroring NSE's own behavior", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      fakeFetchResponse({
+        data: { spot: 72000, cePremium: 500, pePremium: 480, atmStrike: 72000, expiry: "2026-12-31", fetchedAt: Date.now(), impliedVolatility: 12.0, strikeWindow: [] },
+      }),
+    );
+    useMarketStore.setState({ marketId: "MCX", symbol: "GOLD", connection: { status: "connected" }, horizonMode: "intraday" });
+
+    renderHook(() => useLiveRange());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    const liveExtras = useMarketStore.getState().liveExtras;
+    // Before Phase 6, MCX had no tradingHours and horizonMode was force-
+    // ignored for anything but NSE — this would have silently fallen back
+    // to an expiry-kind horizon with no marketSession at all.
+    expect(liveExtras?.marketSession).toBeDefined();
+    expect(liveExtras?.timeHorizon?.kind).toBe("intraday");
+  });
+
+  it("falls back to expiry resolution for MCX when horizonMode is 'expiry', same as NSE", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      fakeFetchResponse({
+        data: { spot: 72000, cePremium: 500, pePremium: 480, atmStrike: 72000, expiry: "2026-12-31", fetchedAt: Date.now(), impliedVolatility: 12.0, strikeWindow: [] },
+      }),
+    );
+    useMarketStore.setState({ marketId: "MCX", symbol: "GOLD", connection: { status: "connected" }, horizonMode: "expiry" });
+
+    renderHook(() => useLiveRange());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(useMarketStore.getState().liveExtras?.timeHorizon?.kind).toBe("expiry");
+    expect(useMarketStore.getState().liveExtras?.timeToExpiryDays).toBeGreaterThan(0);
+  });
+});
+
 describe("useLiveRange — MCX-specific error handling", () => {
   it("surfaces a calculationError for MCX when the feed is unavailable, without touching NSE-only state", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue(fakeFetchResponse({ error: { code: "EMPTY_RESPONSE" } }, false, 502));
