@@ -234,6 +234,11 @@ export function useMarketIntelligence() {
       ...(currentBlendedIV !== undefined ? [{ timestamp: resolvedAt, iv: currentBlendedIV }] : []),
     ];
     const iv = computeIvIntelligence(currentBlendedIV, ivObservations);
+    // Phase 8's Implied Volatility explanation ("above/below the observed
+    // session average") — a plain mean over the same ivObservations already
+    // built above, not a new data source or a second IV computation.
+    const sessionAverageIV =
+      ivObservations.length > 0 ? ivObservations.reduce((sum, o) => sum + o.iv, 0) / ivObservations.length : undefined;
 
     const sessionStatistics = computeSessionStatistics({
       sessionProgressPercent: marketSession?.sessionProgressPercent,
@@ -279,6 +284,9 @@ export function useMarketIntelligence() {
       timeHorizonKind: liveExtras?.timeHorizon?.kind,
       timeHorizonLabel: liveExtras?.timeHorizon?.label,
       marketData,
+      computeExplainability: true,
+      previousSnapshot: priorSnapshots[priorSnapshots.length - 1],
+      sessionAverageIV,
     });
     addSnapshot(snapshot);
   }, [result, lockedSession, dataSource, liveExtras, marketId, symbol, setMarketDNA, addSnapshot]);

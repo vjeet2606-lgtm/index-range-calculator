@@ -225,3 +225,60 @@ describe("useMarketIntelligence — Phase 7 Market Data Intelligence, cross-mark
     expect(snapshot.marketData?.volume.currentVolume).toBeUndefined();
   });
 });
+
+describe("useMarketIntelligence — Phase 8 Explainability, cross-market (NSE + MCX)", () => {
+  const FULL_CHAIN_8 = [
+    { strike: 24700, ce: { premium: 150, oi: 40000 }, pe: { premium: 50, oi: 35000 } },
+    { strike: 24800, ce: { premium: 95, oi: 60000 }, pe: { premium: 90, oi: 58000 } },
+    { strike: 24900, ce: { premium: 50, oi: 33000 }, pe: { premium: 145, oi: 38000 } },
+  ];
+
+  it.each(["NSE", "MCX"] as const)("populates explainability (context/observations/explanations) for %s", async (marketId) => {
+    useMarketStore.setState({
+      dataSource: "live",
+      marketId,
+      symbol: marketId === "MCX" ? "GOLD" : "NIFTY",
+      liveExtras: { atmStrike: 24800, impliedVolatility: 14.2, openInterest: { ce: 60000, pe: 58000 }, fullChain: FULL_CHAIN_8 },
+    });
+    renderHook(() => useMarketIntelligence());
+
+    await act(async () => {
+      useMarketStore.getState().setResult(fakeResult());
+    });
+
+    const [snapshot] = useMarketStore.getState().snapshots;
+    expect(snapshot.explainability).toBeDefined();
+    expect(snapshot.explainability?.explanationVersion).toBe("1.0.0");
+    expect(snapshot.explainability?.explanations.fairValue.title).toBe("Fair Value");
+    expect(snapshot.explainability?.context.greeks).toHaveLength(4);
+    expect(Object.isFrozen(snapshot.explainability)).toBe(true);
+  });
+
+  it("computes real session change in explainability context across two consecutive live calculations", async () => {
+    useMarketStore.setState({
+      dataSource: "live",
+      marketId: "NSE",
+      symbol: "NIFTY",
+      liveExtras: { atmStrike: 24800, impliedVolatility: 14.0, openInterest: { ce: 60000, pe: 58000 }, fullChain: FULL_CHAIN_8 },
+    });
+    renderHook(() => useMarketIntelligence());
+
+    await act(async () => {
+      useMarketStore.getState().setResult(fakeResult(1000));
+    });
+    const first = useMarketStore.getState().snapshots[0];
+    expect(first.explainability?.context.fairValue.previousValue).toBeUndefined();
+
+    useMarketStore.setState({ liveExtras: { atmStrike: 24800, impliedVolatility: 14.5, openInterest: { ce: 60000, pe: 58000 }, fullChain: FULL_CHAIN_8 } });
+    await act(async () => {
+      useMarketStore.getState().setResult(fakeResult(2000));
+    });
+
+    const [, second] = useMarketStore.getState().snapshots;
+    // fakeResult() produces the same fixed premium on both calls, so the
+    // real assertion here is that "previous" correctly carries forward the
+    // FIRST snapshot's own currentValue — not a hardcoded magic number that
+    // would silently go stale if the fixture's premium ever changed.
+    expect(second.explainability?.context.fairValue.previousValue).toBe(first.explainability?.context.fairValue.currentValue);
+  });
+});

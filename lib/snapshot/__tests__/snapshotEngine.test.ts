@@ -135,6 +135,85 @@ describe("createSnapshot", () => {
   });
 });
 
+describe("createSnapshot — Phase 8 backward compatibility (explainability is opt-in)", () => {
+  it("defaults explainability to undefined when computeExplainability isn't passed — every pre-Phase-8 call site keeps working unchanged", () => {
+    const snapshot = createSnapshot({
+      timestamp: 1000,
+      market: "NSE",
+      instrument: "NIFTY",
+      underlyingLabel: "NIFTY 50",
+      spot: 24800,
+      marketDNA: fakeMarketDNA(),
+      lockedBoundaries: null,
+      marketStatus: undefined,
+      sessionProgressPercent: undefined,
+      timeHorizonKind: undefined,
+      timeHorizonLabel: undefined,
+      // computeExplainability intentionally omitted
+    });
+    expect(snapshot.explainability).toBeUndefined();
+  });
+
+  it("computes and deep-freezes explainability when computeExplainability is true", () => {
+    const snapshot = createSnapshot({
+      timestamp: 1000,
+      market: "NSE",
+      instrument: "NIFTY",
+      underlyingLabel: "NIFTY 50",
+      spot: 24800,
+      marketDNA: fakeMarketDNA(),
+      lockedBoundaries: { expectedLowerBoundary: 24570, expectedUpperBoundary: 25030, rangeWidth: 460 },
+      marketStatus: "open",
+      sessionProgressPercent: 40,
+      timeHorizonKind: "intraday",
+      timeHorizonLabel: "Intraday",
+      computeExplainability: true,
+    });
+
+    expect(snapshot.explainability).toBeDefined();
+    expect(snapshot.explainability?.context.fairValue.currentValue).toBe(230);
+    expect(snapshot.explainability?.explanations.fairValue.title).toBe("Fair Value");
+    expect(snapshot.explainability?.explanationVersion).toBe("1.0.0");
+    expect(Object.isFrozen(snapshot.explainability)).toBe(true);
+    expect(Object.isFrozen(snapshot.explainability?.context)).toBe(true);
+  });
+
+  it("uses previousSnapshot to compute real session change in the attached context", () => {
+    const previous = createSnapshot({
+      timestamp: 1000,
+      market: "NSE",
+      instrument: "NIFTY",
+      underlyingLabel: "NIFTY 50",
+      spot: 24800,
+      marketDNA: fakeMarketDNA({ premium: { legs: [], totalAtmStraddlePremium: 200, intrinsicToTotalRatio: 0.1 } }),
+      lockedBoundaries: null,
+      marketStatus: undefined,
+      sessionProgressPercent: undefined,
+      timeHorizonKind: undefined,
+      timeHorizonLabel: undefined,
+      computeExplainability: true,
+    });
+    const current = createSnapshot({
+      timestamp: 2000,
+      market: "NSE",
+      instrument: "NIFTY",
+      underlyingLabel: "NIFTY 50",
+      spot: 24850,
+      marketDNA: fakeMarketDNA({ premium: { legs: [], totalAtmStraddlePremium: 230, intrinsicToTotalRatio: 0.1 } }),
+      lockedBoundaries: null,
+      marketStatus: undefined,
+      sessionProgressPercent: undefined,
+      timeHorizonKind: undefined,
+      timeHorizonLabel: undefined,
+      computeExplainability: true,
+      previousSnapshot: previous,
+    });
+
+    expect(current.explainability?.context.fairValue.previousValue).toBe(200);
+    expect(current.explainability?.context.fairValue.sessionChange).toBe(30);
+  });
+});
+
 describe("createSnapshot — Phase 7 backward compatibility (marketData is optional)", () => {
   it("defaults marketData to undefined when omitted — every pre-Phase-7 call site keeps working unchanged", () => {
     const snapshot = createSnapshot({

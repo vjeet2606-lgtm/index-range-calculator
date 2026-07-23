@@ -193,6 +193,19 @@ export default function DeveloperPanel() {
             )}
           </Section>
 
+          <Section title="Explanation Debug (raw JSON, Phase 8)">
+            {!latest?.explainability && <p className="text-[11px] text-muted-foreground">No explainability data captured yet.</p>}
+            {latest?.explainability && (
+              <>
+                <Row label="Explanation version" value={latest.explainability.explanationVersion} />
+                <Row label="Observations" value={latest.explainability.observations.length} />
+                <pre className="max-h-48 overflow-auto rounded-lg bg-elevated p-2 text-[10px] leading-relaxed text-muted-foreground">
+                  {JSON.stringify(latest.explainability, null, 2)}
+                </pre>
+              </>
+            )}
+          </Section>
+
           <Section title="Code Health Summary">
             <Row label="Circular dependencies" value={CODE_HEALTH_SUMMARY.circularDependencies} />
             <Row label="Files scanned" value={CODE_HEALTH_SUMMARY.filesScanned} />

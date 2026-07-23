@@ -3,6 +3,10 @@ import type { MarketStatus } from "@/lib/marketSession/types";
 import type { TimeHorizonKind } from "@/lib/timeHorizon/types";
 import type { MarketDNA } from "@/lib/analytics/types";
 import type { MarketDataIntelligence } from "@/lib/marketData/types";
+import { buildAllMetricContexts } from "@/lib/context/contextEngine";
+import { deriveObservations } from "@/lib/context/observationEngine";
+import { generateAllExplanations } from "@/lib/explanation/explanationEngine";
+import { EXPLANATION_VERSION } from "@/lib/explanation/types";
 import type { SessionSnapshot, SnapshotComparison } from "./types";
 
 export type CreateSnapshotInput = {
@@ -21,6 +25,21 @@ export type CreateSnapshotInput = {
    *  doesn't pass it is unaffected; the resulting snapshot's marketData
    *  field is simply undefined, same as it was before this field existed. */
   marketData?: MarketDataIntelligence;
+  /** Phase 8 — when true, computes and attaches `explainability` from the
+   *  snapshot's own just-built fields (as "current") plus `previousSnapshot`
+   *  (as "previous"). Defaults to false so every existing call site/test
+   *  that doesn't opt in gets `explainability: undefined`, byte-identical
+   *  to pre-Phase-8 behavior — the same backward-compatible pattern
+   *  `marketData` already established. */
+  computeExplainability?: boolean;
+  previousSnapshot?: SessionSnapshot;
+  /** Needed for the Implied Volatility explanation's "above/below the
+   *  observed session average" clause — the caller already builds an IV
+   *  observation array across this session's snapshots for
+   *  computeIvIntelligence (Phase 7), so the average is cheap to compute
+   *  there rather than requiring createSnapshot() to accept the whole
+   *  snapshot history just for this one number. */
+  sessionAverageIV?: number;
 };
 
 /** Freezes an object and every plain-object/array value it directly or
@@ -75,7 +94,20 @@ export function createSnapshot(input: CreateSnapshotInput): Readonly<SessionSnap
     timeHorizonKind: input.timeHorizonKind,
     timeHorizonLabel: input.timeHorizonLabel,
     marketData: input.marketData,
+    explainability: undefined,
   };
+
+  // Phase 8 — computed from the snapshot's OWN just-built fields (as
+  // "current") plus previousSnapshot, before freezing, since
+  // buildAllMetricContexts/generateAllExplanations only read the object,
+  // never mutate it. Opt-in (see CreateSnapshotInput.computeExplainability's
+  // doc comment) so every pre-Phase-8 call site is unaffected.
+  if (input.computeExplainability) {
+    const context = buildAllMetricContexts(snapshot, input.previousSnapshot);
+    const observations = deriveObservations(context);
+    const explanations = generateAllExplanations(context, snapshot, input.sessionAverageIV);
+    snapshot.explainability = { context, observations, explanations, explanationVersion: EXPLANATION_VERSION };
+  }
 
   return deepFreeze(snapshot);
 }

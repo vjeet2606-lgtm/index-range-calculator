@@ -4,6 +4,7 @@ import UnderlyingCalculation from "@/components/UnderlyingCalculation";
 import LiveMarketStatus from "@/components/LiveMarketStatus";
 import MarketIntelligence from "@/components/MarketIntelligence";
 import OptionPremiumCalculation from "@/components/OptionPremiumCalculation";
+import MarketContextPanel from "@/components/context/MarketContextPanel";
 import CalculationLoadingOverlay from "@/components/calculation/CalculationLoadingOverlay";
 import { useCalculationEngine } from "@/hooks/useCalculationEngine";
 import { useSessionLock } from "@/hooks/useSessionLock";
@@ -31,6 +32,7 @@ export default function ResultDashboard() {
         <LiveMarketStatus />
         <MarketIntelligence />
         <OptionPremiumCalculation />
+        <MarketContextPanel />
         <CalculationLoadingOverlay isVisible={showOverlay} />
       </div>
 
