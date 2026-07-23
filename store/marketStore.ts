@@ -10,6 +10,14 @@ import type { DhanStrikeWindowRow } from "@/lib/dhan/types";
 import type { TimeHorizon, TimeHorizonKind } from "@/lib/timeHorizon/types";
 import type { MarketSessionSnapshot } from "@/lib/marketSession/types";
 import type { MarketDNA } from "@/lib/analytics/types";
+import type { SessionSnapshot } from "@/lib/snapshot/types";
+
+/** Ring-buffer cap for store.snapshots — Phase 5's own "Memory Allocation
+ *  Concerns" audit category applies to this store as much as anything else
+ *  it flags elsewhere; unbounded accumulation over a full trading session
+ *  (every live refresh) is exactly the kind of growth that audit warns
+ *  about, so the oldest snapshot is dropped once this cap is reached. */
+const MAX_SNAPSHOTS = 200;
 
 export type ManualInputs = {
   spot: string;
@@ -139,6 +147,14 @@ type MarketState = {
    *  persisted — derived/ephemeral exactly like `result`, recomputed fresh
    *  on every calculation. */
   marketDNA: MarketDNA | null;
+  /** Phase 5 — Session Snapshot Engine (see lib/snapshot/**), appended to by
+   *  hooks/useMarketIntelligence.ts on every fresh live calculation. Never
+   *  persisted (same reasoning as `result`/`marketDNA`: derived, ephemeral,
+   *  and a reload can't guarantee old snapshots are still a meaningful
+   *  comparison baseline) and reset alongside `result` on any
+   *  market/symbol/horizon change — comparing a snapshot from a different
+   *  instrument or horizon would not be a meaningful comparison. */
+  snapshots: SessionSnapshot[];
   setMarketId: (marketId: MarketId) => void;
   setSymbol: (symbol: string) => void;
   /** Switching Intraday <-> Expiry is, for calculation purposes, exactly
@@ -161,6 +177,10 @@ type MarketState = {
   ) => void;
   requestRelock: () => void;
   setMarketDNA: (marketDNA: MarketDNA | null) => void;
+  /** The one place SessionSnapshots are appended — always an
+   *  already-created, already-frozen snapshot (see
+   *  lib/snapshot/snapshotEngine.ts's createSnapshot), never built here. */
+  addSnapshot: (snapshot: SessionSnapshot) => void;
   triggerRefresh: () => void;
   finishCalculating: () => void;
   setConnection: (partial: Partial<BrokerConnectionState>) => void;
@@ -192,6 +212,7 @@ export const useMarketStore = create<MarketState>()(
       lockedSession: null,
       pendingRelock: false,
       marketDNA: null,
+      snapshots: [],
       // P0 fix: switching market or instrument used to leave the previous
       // symbol's manualInputs/result untouched, so e.g. picking MCX after NIFTY
       // kept showing NIFTY's numbers under the MCX label until the user happened
@@ -214,6 +235,9 @@ export const useMarketStore = create<MarketState>()(
           // locked range describes a different underlying entirely.
           lockedSession: null,
           pendingRelock: false,
+          // Comparing a snapshot from a different instrument would not be a
+          // meaningful "previous vs current" comparison.
+          snapshots: [],
         }),
       setSymbol: (symbol) =>
         set({
@@ -222,6 +246,7 @@ export const useMarketStore = create<MarketState>()(
           liveExtras: null,
           dataSource: "manual",
           result: null,
+          snapshots: [],
           calculationError: null,
           lockedSession: null,
           pendingRelock: false,
@@ -239,6 +264,7 @@ export const useMarketStore = create<MarketState>()(
           // session reference, so it must not linger labeled SESSION LOCKED.
           lockedSession: null,
           pendingRelock: false,
+          snapshots: [],
           // useLiveRange.ts's de-dupe guard keys off marketId:symbol +
           // refreshNonce, not horizonMode — without bumping this, toggling
           // the mode would clear the dashboard above but never actually
@@ -277,6 +303,10 @@ export const useMarketStore = create<MarketState>()(
         }),
       requestRelock: () => set({ pendingRelock: true }),
       setMarketDNA: (marketDNA) => set({ marketDNA }),
+      addSnapshot: (snapshot) =>
+        set((state) => ({
+          snapshots: [...state.snapshots, snapshot].slice(-MAX_SNAPSHOTS),
+        })),
       // No-ops while a refresh is already in flight — the disabled Refresh
       // button already prevents this from the UI, but guarding here too means
       // a second trigger (e.g. auto-refresh firing mid-manual-refresh) can

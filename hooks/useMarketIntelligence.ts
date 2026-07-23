@@ -14,6 +14,7 @@ import { computeConfidence } from "@/lib/analytics/confidence";
 import { generateLiveExplanation } from "@/lib/analytics/liveExplanation";
 import type { MarketDNA } from "@/lib/analytics/types";
 import { MARKET_STATUS_LABEL } from "@/lib/marketSession/displayLabels";
+import { createSnapshot } from "@/lib/snapshot/snapshotEngine";
 
 const DEBUG = process.env.NODE_ENV !== "production";
 function pipelineLog(...args: unknown[]): void {
@@ -41,7 +42,10 @@ export function useMarketIntelligence() {
   const lockedSession = useMarketStore((state) => state.lockedSession);
   const dataSource = useMarketStore((state) => state.dataSource);
   const liveExtras = useMarketStore((state) => state.liveExtras);
+  const marketId = useMarketStore((state) => state.marketId);
+  const symbol = useMarketStore((state) => state.symbol);
   const setMarketDNA = useMarketStore((state) => state.setMarketDNA);
+  const addSnapshot = useMarketStore((state) => state.addSnapshot);
 
   useEffect(() => {
     if (!result) {
@@ -177,5 +181,32 @@ export function useMarketIntelligence() {
 
     pipelineLog("computed", marketDNA);
     setMarketDNA(marketDNA);
-  }, [result, lockedSession, dataSource, liveExtras, setMarketDNA]);
+
+    // Phase 5, Workstream 2 — Session Snapshot Engine. Reuses the MarketDNA
+    // just assembled above verbatim (zero new computation) plus already-
+    // available store state to build a frozen, timestamped record. Captured
+    // on every fresh calculation this hook already runs for — no separate
+    // effect, no separate subscription, so there is exactly one place a
+    // snapshot is ever created.
+    const snapshot = createSnapshot({
+      timestamp: resolvedAt,
+      market: marketId,
+      instrument: symbol,
+      underlyingLabel: result.underlying.underlyingLabel,
+      spot: result.underlying.currentSpot,
+      marketDNA,
+      lockedBoundaries: lockedSession
+        ? {
+            expectedLowerBoundary: lockedSession.expectedLowerBoundary,
+            expectedUpperBoundary: lockedSession.expectedUpperBoundary,
+            rangeWidth: lockedSession.rangeWidth,
+          }
+        : null,
+      marketStatus: marketSession?.status,
+      sessionProgressPercent: marketSession?.sessionProgressPercent,
+      timeHorizonKind: liveExtras?.timeHorizon?.kind,
+      timeHorizonLabel: liveExtras?.timeHorizon?.label,
+    });
+    addSnapshot(snapshot);
+  }, [result, lockedSession, dataSource, liveExtras, marketId, symbol, setMarketDNA, addSnapshot]);
 }

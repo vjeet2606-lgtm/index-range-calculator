@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
 import NativeInit from "@/components/native/NativeInit";
+import DeveloperPanel from "@/components/dev/DeveloperPanel";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -32,6 +33,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col overflow-x-hidden font-sans">
         <NativeInit />
         {children}
+        <DeveloperPanel />
       </body>
     </html>
   );

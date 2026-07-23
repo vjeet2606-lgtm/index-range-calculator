@@ -1,0 +1,84 @@
+import type { MarketId } from "@/lib/markets/types";
+import type { MarketStatus } from "@/lib/marketSession/types";
+import type { TimeHorizonKind } from "@/lib/timeHorizon/types";
+import type {
+  ConfidenceReport,
+  GreeksIntelligenceReport,
+  LiquidityIntelligenceReport,
+  RiskIntelligenceReport,
+  StructureIntelligenceReport,
+  VolatilityIntelligenceReport,
+} from "@/lib/analytics/types";
+
+/**
+ * Phase 5, Workstream 2 — Session Snapshot Engine.
+ *
+ * A SessionSnapshot is a frozen, timestamped copy of already-computed state
+ * — the Quantitative Engine's result, the Market Intelligence Engine's
+ * MarketDNA, the locked session reference, and live-fetch metadata. It
+ * computes nothing itself; lib/snapshot/snapshotEngine.ts's createSnapshot()
+ * is a pure adapter, and the Volatility/Structure/Liquidity/Risk/Confidence
+ * sub-reports here are the exact same objects lib/analytics/** already
+ * produced for the current calculation — reused verbatim, not recomputed
+ * (Phase 5's "no duplicate calculations" requirement).
+ *
+ * "Fair Value" here means the ATM straddle's total premium
+ * (MarketDNA.premium.totalAtmStraddlePremium) — the model's IV is
+ * calibrated per leg specifically so that fair-value-at-current-spot
+ * reproduces the live premium (see lib/calculators/premiumBreakdown.ts's
+ * doc comment), so this is the one number in this app that legitimately
+ * represents "the model's current fair value" without being a duplicate of
+ * some other already-named field.
+ */
+export type SessionSnapshot = {
+  timestamp: number;
+  market: MarketId;
+  instrument: string;
+  underlyingLabel: string;
+  spot: number;
+  atmIV: number | undefined;
+  atmDelta: number | undefined;
+  atmGamma: number | undefined;
+  atmVegaPerPoint: number | undefined;
+  atmNetThetaPerDay: number | undefined;
+  atmFairValue: number | undefined;
+  expectedLowerBoundary: number | undefined;
+  expectedUpperBoundary: number | undefined;
+  rangeWidth: number | undefined;
+  remainingExpectedMove: number | undefined;
+  /** Minutes remaining in today's trading session at the moment this
+   *  snapshot was taken (MarketDNA.time.tradingMinutesRemaining, copied
+   *  verbatim) — needed by the Validation Framework to scale
+   *  remainingExpectedMove down to a sub-interval; stored here rather than
+   *  recomputed there. */
+  remainingSessionMinutes: number | undefined;
+  volatility: VolatilityIntelligenceReport;
+  liquidity: LiquidityIntelligenceReport;
+  structure: StructureIntelligenceReport;
+  risk: RiskIntelligenceReport;
+  greeksIntelligence: GreeksIntelligenceReport;
+  confidence: ConfidenceReport;
+  marketStatus: MarketStatus | undefined;
+  sessionProgressPercent: number | undefined;
+  timeHorizonKind: TimeHorizonKind | undefined;
+  timeHorizonLabel: string | undefined;
+};
+
+/**
+ * A pure, per-field arithmetic diff between two snapshots — every field is
+ * `current - previous` (or a derived percentage), nothing interpreted. "No
+ * Buy/Sell interpretation. Only mathematical comparison" (Phase 5 spec).
+ */
+export type SnapshotComparison = {
+  elapsedMs: number;
+  spotChange: number | undefined;
+  ivChangePoints: number | undefined;
+  premiumChange: number | undefined;
+  expectedMoveChange: number | undefined;
+  rangeWidthChange: number | undefined;
+  deltaChange: number | undefined;
+  gammaChange: number | undefined;
+  vegaChange: number | undefined;
+  thetaChange: number | undefined;
+  sessionProgressChangePoints: number | undefined;
+};

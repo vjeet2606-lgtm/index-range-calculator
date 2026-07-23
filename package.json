@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:bench": "vitest bench --run"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",
