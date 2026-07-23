@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import Card from "@/components/ui/Card";
 import Badge, { type BadgeTone } from "@/components/ui/Badge";
 import { formatNumber, formatSigned } from "@/lib/format";
@@ -31,8 +31,15 @@ const DATA_QUALITY_TONE: Record<string, BadgeTone> = {
  * this is presentation only. "Mini Trend" is the same observedTrend the
  * Context Engine already computed, shown as a fixed arrow glyph — never a
  * bullish/bearish color or a Buy/Sell cue.
+ *
+ * Final Phase performance hardening: memoized with the default shallow
+ * prop comparison (context/explanation are stable object references from
+ * a frozen snapshot until a NEW snapshot actually arrives) — MarketContext
+ * Panel renders up to 16 of these (12 metrics + 4 Greeks); without this,
+ * every one re-renders (and re-evaluates its own isExpanded state) on any
+ * ancestor re-render, even ones with no bearing on this card's own data.
  */
-export default function MetricExplanationCard({ context, explanation }: { context: MetricContext; explanation: MetricExplanation }) {
+function MetricExplanationCard({ context, explanation }: { context: MetricContext; explanation: MetricExplanation }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -108,3 +115,5 @@ export default function MetricExplanationCard({ context, explanation }: { contex
     </Card>
   );
 }
+
+export default memo(MetricExplanationCard);

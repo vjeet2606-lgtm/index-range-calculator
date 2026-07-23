@@ -47,14 +47,24 @@ describe("normalCdf vs. an independently-implemented reference (Simpson's-rule q
     }
   });
 
-  it("holds across randomized inputs (property-based)", () => {
-    fc.assert(
-      fc.property(fc.double({ min: -8, max: 8, noNaN: true }), (x) => {
-        expect(Math.abs(normalCdf(x) - referenceNormalCdf(x))).toBeLessThan(2e-7);
-      }),
-      { numRuns: 200 },
-    );
-  });
+  // Explicit timeout: this property test's 200 runs each numerically
+  // integrate a reference CDF via Simpson's rule — comfortably under the
+  // default 5000ms uninstrumented, but v8 coverage instrumentation
+  // (npm run test:coverage) adds enough per-call overhead to occasionally
+  // exceed it. A test-infrastructure timing adjustment only — normalCdf
+  // and referenceNormalCdf themselves are untouched.
+  it(
+    "holds across randomized inputs (property-based)",
+    () => {
+      fc.assert(
+        fc.property(fc.double({ min: -8, max: 8, noNaN: true }), (x) => {
+          expect(Math.abs(normalCdf(x) - referenceNormalCdf(x))).toBeLessThan(2e-7);
+        }),
+        { numRuns: 200 },
+      );
+    },
+    20_000,
+  );
 });
 
 describe("normalPdf", () => {

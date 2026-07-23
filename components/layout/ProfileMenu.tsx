@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   User,
@@ -20,6 +21,7 @@ import {
   Smartphone,
   Apple,
   Monitor,
+  Activity,
   type LucideIcon,
 } from "lucide-react";
 import { triggerHaptic } from "@/lib/haptics";
@@ -262,6 +264,21 @@ export default function ProfileMenu() {
                   </button>
                 ))}
               </div>
+
+              <div className="my-4 border-t border-border" />
+
+              <Link
+                href="/health"
+                onClick={() => {
+                  triggerHaptic("normal");
+                  setIsOpen(false);
+                }}
+                className="flex items-center gap-2.5 py-1.5 text-left transition-colors hover:text-primary"
+              >
+                <Activity className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={2} />
+                <span className="flex-1 truncate text-sm text-foreground">Application Health</span>
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" strokeWidth={2} />
+              </Link>
 
               <div className="my-4 border-t border-border" />
 

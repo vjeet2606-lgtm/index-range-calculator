@@ -48,17 +48,32 @@ export default function DeveloperPanel() {
 
   if (process.env.NODE_ENV === "production") return null;
 
-  const validation = summarizeValidation(snapshots);
+  const toggleButton = (
+    <Button variant="secondary" onClick={() => setIsOpen((v) => !v)} className="h-9 px-4 text-[11px]">
+      {isOpen ? "Close" : "Dev Tools"}
+    </Button>
+  );
+
+  // Final Phase performance hardening: summarizeValidation/compareSnapshots
+  // previously ran unconditionally on every render of this globally-mounted
+  // component (it subscribes to store.snapshots, which changes on every
+  // live calculation) even while collapsed and none of their output was
+  // visible. Early-returning the collapsed view here means the rest of
+  // this function — and every computation below — only ever runs while
+  // the panel is actually open.
+  if (!isOpen) {
+    return <div className="fixed bottom-4 right-4 z-50 flex max-w-sm flex-col items-end gap-2">{toggleButton}</div>;
+  }
+
   const latest = snapshots[snapshots.length - 1];
   const previous = snapshots[snapshots.length - 2];
+  const validation = summarizeValidation(snapshots);
   const comparison = latest && previous ? compareSnapshots(latest, previous) : null;
   const marketProfile = getMarket(marketId);
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex max-w-sm flex-col items-end gap-2">
-      <Button variant="secondary" onClick={() => setIsOpen((v) => !v)} className="h-9 px-4 text-[11px]">
-        {isOpen ? "Close" : "Dev Tools"}
-      </Button>
+      {toggleButton}
 
       {isOpen && (
         <Card variant="glass" className="flex max-h-[70vh] w-96 flex-col gap-4 overflow-y-auto p-4">

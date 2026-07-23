@@ -24,6 +24,7 @@ import { computeMaxPainIntelligence } from "@/lib/marketData/maxPainIntelligence
 import { computeIvIntelligence } from "@/lib/marketData/ivIntelligence";
 import { computeSessionStatistics } from "@/lib/marketData/sessionStatistics";
 import type { MarketDataIntelligence } from "@/lib/marketData/types";
+import { historyStore } from "@/lib/history/registry";
 
 const DEBUG = process.env.NODE_ENV !== "production";
 function pipelineLog(...args: unknown[]): void {
@@ -289,5 +290,13 @@ export function useMarketIntelligence() {
       sessionAverageIV,
     });
     addSnapshot(snapshot);
+
+    // Final Phase, Part 1 — Historical Snapshot Storage. Persists the exact
+    // same frozen snapshot just appended to the in-session ring buffer
+    // above, into the separate, independent multi-day archive
+    // (lib/history/**). Never throws (see localStorageHistoryStore.ts's
+    // doc comment) — a full quota or disabled storage degrades to "no
+    // history," never to a broken calculation.
+    historyStore.save(snapshot);
   }, [result, lockedSession, dataSource, liveExtras, marketId, symbol, setMarketDNA, addSnapshot]);
 }

@@ -35,8 +35,10 @@ function istInstantForTime(now: number, hhmm: string): number {
 }
 
 /** "YYYY-MM-DD" for the IST calendar date `now` falls on — the key
- *  SessionCalendarOverride entries are matched against. */
-function istCalendarDateKey(now: number): string {
+ *  SessionCalendarOverride entries are matched against. Exported (Final
+ *  Phase) so lib/history/** can key historical records by the same IST
+ *  calendar date instead of reimplementing this conversion a second time. */
+export function istCalendarDateKey(now: number): string {
   const wallClock = istWallClock(now);
   const y = wallClock.getUTCFullYear();
   const m = String(wallClock.getUTCMonth() + 1).padStart(2, "0");
