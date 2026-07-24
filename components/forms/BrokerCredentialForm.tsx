@@ -70,8 +70,25 @@ export default function BrokerCredentialForm({
   // eliminating the dependency on native click-to-submit propagation
   // through nested interactive layers entirely.
   function handleConnectClick(event: MouseEvent<HTMLButtonElement>) {
+    pipelineLog("Button clicked", { brokerId: broker.id, button: "Connect" });
     event.preventDefault();
     formRef.current?.requestSubmit();
+  }
+
+  // TEMPORARY DIAGNOSTIC — Test Connection previously had no logging at all
+  // around its click, unlike the Connect path (handleSubmit, below). Added
+  // to trace the reported "no request ever reaches the server" bug.
+  function handleTestClick() {
+    pipelineLog("Button clicked", { brokerId: broker.id, button: "Test Connection" });
+    if (!allFilled) {
+      pipelineLog("Validation failed — a required field is empty", {
+        brokerId: broker.id,
+        missing: broker.requiredFields.filter((field) => !values[field.key]?.trim()).map((f) => f.key),
+      });
+      return;
+    }
+    pipelineLog("Validation passed", { brokerId: broker.id, button: "Test Connection" });
+    onTest(values);
   }
 
   if (broker.requiredFields.length === 0) {
@@ -103,7 +120,7 @@ export default function BrokerCredentialForm({
           variant="outline"
           isLoading={isTesting}
           disabled={!allFilled || isSaving}
-          onClick={() => onTest(values)}
+          onClick={handleTestClick}
           className="flex-1"
         >
           Test Connection

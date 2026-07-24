@@ -68,7 +68,13 @@ export function useBrokerHub() {
     return savedStatuses.find((s) => s.brokerId === brokerId);
   }
 
+  // TEMPORARY DIAGNOSTIC — testCredentials() previously had zero pipelineLog
+  // instrumentation at all (unlike saveCredentials() below), making it
+  // impossible to tell from the console whether Test Connection's fetch()
+  // ever actually ran. Added to trace the reported "no request ever
+  // reaches the server" bug; safe to remove once resolved.
   async function testCredentials(brokerId: string, values: Record<string, string>) {
+    pipelineLog("About to call fetch", { brokerId, endpoint: `/api/brokers/${brokerId}/test` });
     setTestingBrokerId(brokerId);
     try {
       const res = await fetch(`/api/brokers/${brokerId}/test`, {
@@ -76,7 +82,9 @@ export function useBrokerHub() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
+      pipelineLog("Fetch completed", { brokerId, status: res.status, ok: res.ok });
       const json = await res.json();
+      pipelineLog("Response received", { brokerId, json });
       const verified = Boolean(json.verified);
       triggerHaptic(verified ? "success" : json.notImplemented ? "warning" : "error");
       setTestResults((prev) => ({
@@ -86,7 +94,8 @@ export function useBrokerHub() {
           message: json.errorMessage ?? (verified ? "Connection verified." : "Verification failed."),
         },
       }));
-    } catch {
+    } catch (err) {
+      pipelineLog("Fetch failed — fetch() threw before a response was received", { brokerId, err });
       triggerHaptic("error");
       setTestResults((prev) => ({
         ...prev,
@@ -138,12 +147,15 @@ export function useBrokerHub() {
     }
 
     try {
+      pipelineLog("About to call fetch", { brokerId, endpoint: `/api/brokers/${brokerId}/save` });
       const res = await fetch(`/api/brokers/${brokerId}/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
+      pipelineLog("Fetch completed", { brokerId, status: res.status, ok: res.ok });
       const json = await res.json();
+      pipelineLog("Response received", { brokerId, json });
       if (!res.ok) {
         pipelineLog("API failed", { brokerId, status: res.status, error: json.error });
         triggerHaptic("error");
