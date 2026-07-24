@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { findLeg } from "../PremiumOutlookPanel";
+import { findLeg, confidencePercent } from "../PremiumOutlookPanel";
 import type { PremiumBreakdown } from "@/types/calculationEngine";
+import type { ConfidenceReport } from "@/lib/analytics/types";
 
 function fakeLeg(overrides: Partial<PremiumBreakdown> = {}): PremiumBreakdown {
   return {
@@ -62,5 +63,34 @@ describe("findLeg (Premium Outlook — ATM leg selection)", () => {
 
   it("returns undefined for an empty legs array without crashing", () => {
     expect(findLeg([], 24800, "CE")).toBeUndefined();
+  });
+});
+
+function fakeConfidence(overrides: Partial<ConfidenceReport> = {}): ConfidenceReport {
+  return {
+    level: "high",
+    dataSource: "live",
+    dataAgeSeconds: 4,
+    strikesWithCompleteData: 5,
+    strikesFetched: 5,
+    notes: [],
+    ...overrides,
+  };
+}
+
+describe("confidencePercent (Premium Outlook — reuses the Confidence Engine's own completeness ratio)", () => {
+  it("computes the same completeness ratio computeConfidence() already uses internally, as a percentage", () => {
+    expect(confidencePercent(fakeConfidence({ strikesWithCompleteData: 5, strikesFetched: 5 }))).toBe(100);
+    expect(confidencePercent(fakeConfidence({ strikesWithCompleteData: 3, strikesFetched: 5 }))).toBe(60);
+    expect(confidencePercent(fakeConfidence({ strikesWithCompleteData: 0, strikesFetched: 5 }))).toBe(0);
+  });
+
+  it("rounds to the nearest whole percent", () => {
+    // 2/3 = 66.66...% -> 67
+    expect(confidencePercent(fakeConfidence({ strikesWithCompleteData: 2, strikesFetched: 3 }))).toBe(67);
+  });
+
+  it("never divides by zero — returns undefined (not NaN/Infinity) when nothing was fetched", () => {
+    expect(confidencePercent(fakeConfidence({ strikesWithCompleteData: 0, strikesFetched: 0 }))).toBeUndefined();
   });
 });

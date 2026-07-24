@@ -26,11 +26,12 @@ type DashboardMode = "quant" | "outlook";
  * Two dashboard modes, one shared data pipeline. useCalculationEngine/
  * useSessionLock/useMarketIntelligence stay mounted unconditionally
  * regardless of which mode is displayed — they're the calculation
- * pipeline, not UI; only the rendered JSX branches on `mode`. Quantitative
- * Analysis is the default and byte-identical to before this mode toggle
- * existed. Premium Outlook is purely a different, simplified READ of the
- * exact same store.result/store.marketDNA these hooks already produce —
- * no new calculation, no new model.
+ * pipeline, not UI; only the rendered JSX branches on `mode`. Premium
+ * Outlook is the default landing experience; Quantitative Analysis (the
+ * pre-existing detailed view, byte-identical to before this mode toggle
+ * existed) is one tap away. Premium Outlook is purely a different,
+ * simplified READ of the exact same store.result/store.marketDNA these
+ * hooks already produce — no new calculation, no new model.
  */
 export default function ResultDashboard() {
   useCalculationEngine();
@@ -39,14 +40,14 @@ export default function ResultDashboard() {
 
   const isCalculating = useMarketStore((state) => state.isCalculating);
   const showOverlay = useMinimumDurationVisible(isCalculating, MIN_LOADING_MS);
-  const [mode, setMode] = useState<DashboardMode>("quant");
+  const [mode, setMode] = useState<DashboardMode>("outlook");
 
   return (
     <div className="flex flex-col gap-6">
       <SegmentedControl
         options={[
-          { value: "quant", label: "Quantitative Analysis" },
           { value: "outlook", label: "Premium Outlook" },
+          { value: "quant", label: "Quantitative Analysis" },
         ]}
         value={mode}
         onChange={(value) => setMode(value as DashboardMode)}
@@ -69,13 +70,23 @@ export default function ResultDashboard() {
         </div>
       )}
 
-      <p className="border-t border-border pt-4 text-center text-xs leading-relaxed text-muted-foreground">
-        <span className="font-semibold text-foreground">Mathematical Calculation</span>
-        <br />
-        This calculator performs quantitative calculations using live market data. Results are
-        generated from current market inputs including Spot Price, Option Premium, Greeks,
-        Implied Volatility and Time to Expiry.
-      </p>
+      {mode === "quant" ? (
+        <p className="border-t border-border pt-4 text-center text-xs leading-relaxed text-muted-foreground">
+          <span className="font-semibold text-foreground">Mathematical Calculation</span>
+          <br />
+          This calculator performs quantitative calculations using live market data. Results are
+          generated from current market inputs including Spot Price, Option Premium, Greeks,
+          Implied Volatility and Time to Expiry.
+        </p>
+      ) : (
+        // Premium Outlook's own footer (Projection Horizon / Data Quality)
+        // already covers this mode's disclosure needs without naming
+        // Greeks/IV — this shared paragraph deliberately doesn't render
+        // here to keep that boundary real, not just a display omission.
+        <p className="border-t border-border pt-4 text-center text-[11px] leading-relaxed text-muted-foreground">
+          Descriptive premium projections only — not trading advice.
+        </p>
+      )}
     </div>
   );
 }
