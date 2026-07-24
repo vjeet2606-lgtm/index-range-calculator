@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBrokerById } from "@/lib/brokers/registry";
 import { dhanAdapter } from "@/lib/brokers/adapters/dhanAdapter";
+import { deltaAdapter } from "@/lib/brokers/adapters/deltaAdapter";
 
 /**
  * Tests credentials against the broker's real API where a real adapter exists
@@ -24,6 +25,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (brokerId === "dhan") {
     const result = await dhanAdapter.validate(credentials as Record<string, string>);
+    return NextResponse.json(result, { status: result.connected ? 200 : 422 });
+  }
+
+  if (brokerId === "delta") {
+    const result = await deltaAdapter.validate(credentials as Record<string, string>);
     return NextResponse.json(result, { status: result.connected ? 200 : 422 });
   }
 

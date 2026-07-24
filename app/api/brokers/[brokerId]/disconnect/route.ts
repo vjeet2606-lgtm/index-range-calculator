@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getBrokerById } from "@/lib/brokers/registry";
 import { deleteCredentials } from "@/lib/brokers/credentialStore";
 import { dhanAdapter } from "@/lib/brokers/adapters/dhanAdapter";
+import { deltaAdapter } from "@/lib/brokers/adapters/deltaAdapter";
 
 export async function POST(_request: Request, { params }: { params: Promise<{ brokerId: string }> }) {
   const { brokerId } = await params;
@@ -12,6 +13,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ br
 
   if (brokerId === "dhan") {
     await dhanAdapter.disconnect();
+  } else if (brokerId === "delta") {
+    await deltaAdapter.disconnect();
   } else {
     await deleteCredentials(brokerId);
   }

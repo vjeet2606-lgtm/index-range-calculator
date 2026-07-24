@@ -152,9 +152,16 @@ export function useBrokerHub() {
         useMarketStore.getState().showToast(message, "error");
         return;
       }
-      pipelineLog("API success", { brokerId });
+      pipelineLog("API success", { brokerId, connected: json.connected });
       triggerHaptic("success");
-      useMarketStore.getState().showToast(`${brokerName(brokerId)} credentials saved.`, "success");
+      // Generic, not broker-specific: any broker whose /save route actually
+      // authenticated (currently Delta; a future adapter would work the
+      // same way with zero changes here) reports connected:true and gets
+      // the same "connected successfully" wording Dhan already uses —
+      // brokers still on the unconditional-save path keep the original
+      // "credentials saved" message unchanged.
+      const message = json.connected ? `${brokerName(brokerId)} connected successfully.` : `${brokerName(brokerId)} credentials saved.`;
+      useMarketStore.getState().showToast(message, "success");
       pipelineLog("Connection complete", { brokerId });
       await refreshStatuses();
     } catch (err) {

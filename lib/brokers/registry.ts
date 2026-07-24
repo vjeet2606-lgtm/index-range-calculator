@@ -207,7 +207,7 @@ const CRYPTO_BROKERS: BrokerConfig[] = [
     region: "crypto",
     country: "India",
     supportedMarkets: ["CRYPTO"],
-    implemented: false,
+    implemented: true,
     website: "https://www.delta.exchange",
     developerPortal: "https://www.delta.exchange/app/account/manageapikeys",
     documentationUrl: "https://docs.delta.exchange",
